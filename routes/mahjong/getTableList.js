@@ -1,4 +1,3 @@
-// routes/mahjong/getTableList.js
 const jwt = require("jsonwebtoken");
 const db = require("../../config/database");
 const JWT_SECRET =
@@ -37,13 +36,13 @@ const getTableList = async (req, res) => {
       try {
         const decoded = jwt.verify(token, JWT_SECRET);
 
-        currentUserId = decoded.id; // 成功解析
+        currentUserId = decoded.userId; // 成功解析
       } catch (err) {
         console.warn("Token无效或已过期，但不影响查询");
       }
     }
 
-    // 这里开始和你原来一样
+    // 查询过期房间，更新状态及用户状态
     const findExpiredSql = `
       SELECT id, participants 
       FROM table_list 
@@ -71,12 +70,13 @@ const getTableList = async (req, res) => {
         const uniqueUserIds = [...new Set(allUserIds)];
         const userPlaceholders = uniqueUserIds.map(() => "?").join(",");
         await connection.execute(
-          `UPDATE users SET status = 0, enter_room_id = NULL WHERE id IN (${userPlaceholders})`,
+          `UPDATE users SET status = 0, enter_room_id = NULL WHERE user_id IN (${userPlaceholders})`,
           uniqueUserIds
         );
       }
     }
 
+    // 查询活跃房间列表
     const selectSql = `
       SELECT 
         id,
@@ -117,18 +117,20 @@ const getTableList = async (req, res) => {
       const userSql = `
         SELECT 
           id,
+          user_id as userId,
           wxid,
           nickname,
           avatar_url as avatarUrl,
           gender,
           phone_num as phoneNum
         FROM users
-        WHERE id IN (${placeholders})
+        WHERE user_id IN (${placeholders})
       `;
       const [userResults] = await connection.execute(userSql, userIdArray);
-      userResults.forEach((u) => (userMap[u.id] = u));
+      userResults.forEach((u) => (userMap[u.userId] = u));
     }
 
+    // 组装最终结果，给当前用户加标记
     const processedResults = results.map((row, index) => {
       const userIds = parsedParticipantsMap.get(index) || [];
       const isCurrentRoom = currentUserId

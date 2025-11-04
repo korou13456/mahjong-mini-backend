@@ -40,6 +40,8 @@ const exitRoom = async (req, res) => {
       } else {
         participants = table.participants;
       }
+      // 统一为数字数组，避免字符串/数字混用导致 indexOf 匹配失败
+      participants = participants.map((p) => parseInt(p));
     }
 
     const userIndex = participants.indexOf(parseInt(userId));

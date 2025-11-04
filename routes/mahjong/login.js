@@ -4,9 +4,8 @@ const axios = require("axios");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 
-// JWT secret（最好放env环境变量）
-const JWT_SECRET =
-  "bd57f641483e885e3bdf7f6a3e538e58b2b1eaaafeb70f6dfea4ef30b5921597360c42ffad4b91cf1a8a7a194f04321da97f3ab863af3d90e55494961d107418";
+// JWT secret（已从环境变量读取）
+const JWT_SECRET = process.env.JWT_SECRET || "change_me_in_env";
 
 const wechatLogin = async (req, res) => {
   const connection = await db.getConnection();
@@ -19,8 +18,8 @@ const wechatLogin = async (req, res) => {
       return res.status(400).json({ code: 400, message: "缺少登录凭证code" });
     }
 
-    const appid = "wx0c96cbb1c0b0e690";
-    const secret = "ad2040e6056941489304732f7a48db20";
+    const appid = process.env.WECHAT_APPID;
+    const secret = process.env.WECHAT_SECRET;
 
     const wechatResponse = await axios.get(
       "https://api.weixin.qq.com/sns/jscode2session",

@@ -34,6 +34,7 @@ const enterRoom = async (req, res) => {
             typeof currentTable.participants === "string"
               ? JSON.parse(currentTable.participants)
               : currentTable.participants;
+          currentParticipants = currentParticipants.map((p) => parseInt(p));
         }
 
         const userIndex = currentParticipants.indexOf(parseInt(userId));
@@ -96,6 +97,7 @@ const enterRoom = async (req, res) => {
         typeof targetTable.participants === "string"
           ? JSON.parse(targetTable.participants)
           : targetTable.participants;
+      targetParticipants = targetParticipants.map((p) => parseInt(p));
     }
 
     // 检查是否已在目标房间
