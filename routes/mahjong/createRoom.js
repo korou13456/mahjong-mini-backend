@@ -1,5 +1,6 @@
 // routes/mahjong/createRoom.js
 const db = require("../../config/database");
+const { leaveRoom } = require("../../utils/roomHelpers");
 
 const createRoom = async (req, res) => {
   const connection = await db.getConnection();
@@ -30,52 +31,7 @@ const createRoom = async (req, res) => {
 
     // 先判断用户是否在房间中，如果在，就先退出当前房间
     if (currentTableId) {
-      const [tables] = await connection.execute(
-        "SELECT participants, status, host_id FROM `table_list` WHERE id = ?",
-        [currentTableId]
-      );
-
-      if (tables.length > 0) {
-        const table = tables[0];
-        let participants = [];
-
-        if (table.participants) {
-          participants =
-            typeof table.participants === "string"
-              ? JSON.parse(table.participants)
-              : table.participants;
-        }
-
-        const userIndex = participants.indexOf(parseInt(host_id));
-        if (userIndex !== -1) {
-          participants.splice(userIndex, 1);
-
-          // 如果退出的是房主，换成下一个或者保留最后退出者id
-          let newHostId = table.host_id;
-          if (table.host_id === parseInt(host_id)) {
-            if (participants.length > 0) {
-              newHostId = participants[0];
-            } else {
-              newHostId = parseInt(host_id);
-            }
-          }
-
-          // 房间没人时，状态变为3
-          const newStatus = participants.length === 0 ? 3 : table.status;
-
-          // 更新退出房间的参与者列表、host_id和状态
-          await connection.execute(
-            "UPDATE `table_list` SET participants = ?, host_id = ?, status = ? WHERE id = ?",
-            [JSON.stringify(participants), newHostId, newStatus, currentTableId]
-          );
-
-          // 更新用户状态为0，清空enter_room_id
-          await connection.execute(
-            "UPDATE users SET status = 0, enter_room_id = NULL WHERE user_id = ?",
-            [host_id]
-          );
-        }
-      }
+      await leaveRoom(connection, currentTableId, host_id);
     }
 
     // 创建新房间

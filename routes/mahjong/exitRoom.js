@@ -1,5 +1,6 @@
 // routes/mahjong/exitRoom.js
 const db = require("../../config/database");
+const { leaveRoom } = require("../../utils/roomHelpers");
 
 // 退出房间
 const exitRoom = async (req, res) => {
@@ -18,66 +19,23 @@ const exitRoom = async (req, res) => {
       });
     }
 
-    const [tables] = await connection.execute(
-      "SELECT participants, status, host_id FROM `table_list` WHERE id = ?",
-      [tableId]
-    );
+    const result = await leaveRoom(connection, tableId, userId);
 
-    if (tables.length === 0) {
+    if (result.reason === "TABLE_NOT_FOUND") {
+      await connection.rollback();
       return res.status(404).json({
         success: false,
         message: "桌子不存在",
       });
     }
 
-    const table = tables[0];
-
-    let participants = [];
-
-    if (table.participants) {
-      if (typeof table.participants === "string") {
-        participants = JSON.parse(table.participants);
-      } else {
-        participants = table.participants;
-      }
-      // 统一为数字数组，避免字符串/数字混用导致 indexOf 匹配失败
-      participants = participants.map((p) => parseInt(p));
-    }
-
-    const userIndex = participants.indexOf(parseInt(userId));
-    if (userIndex === -1) {
+    if (result.reason === "NOT_IN_ROOM") {
+      await connection.rollback();
       return res.status(400).json({
         success: false,
         message: "您不在该房间中",
       });
     }
-
-    participants.splice(userIndex, 1);
-
-    // 如果退出的是房主
-    let newHostId = table.host_id;
-    if (table.host_id === parseInt(userId)) {
-      if (participants.length > 0) {
-        newHostId = participants[0]; // 有人就换成第一个参与者
-      } else {
-        newHostId = parseInt(userId); // 没人了，保留最后退出者id作为host_id
-      }
-    }
-
-    // 如果没人了，房间状态改为3，否则保持原状态
-    const newStatus = participants.length === 0 ? 3 : table.status;
-
-    // 更新桌子参与者列表、host_id 和状态
-    await connection.execute(
-      "UPDATE `table_list` SET participants = ?, host_id = ?, status = ? WHERE id = ?",
-      [JSON.stringify(participants), newHostId, newStatus, tableId]
-    );
-
-    // 更新用户状态为0（空闲）
-    await connection.execute(
-      "UPDATE users SET status = 0, enter_room_id = NULL WHERE user_id = ?",
-      [userId]
-    );
 
     await connection.commit();
 
@@ -87,9 +45,9 @@ const exitRoom = async (req, res) => {
       data: {
         tableId,
         userId,
-        currentPlayers: participants.length,
-        newHostId,
-        newStatus,
+        currentPlayers: (result.participants || []).length,
+        newHostId: result.newHostId,
+        newStatus: result.newStatus,
       },
     });
   } catch (error) {

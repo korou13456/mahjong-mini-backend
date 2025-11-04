@@ -1,20 +1,8 @@
 const jwt = require("jsonwebtoken");
 const db = require("../../config/database");
+const { parseParticipants } = require("../../utils/roomHelpers");
 const JWT_SECRET =
   "bd57f641483e885e3bdf7f6a3e538e58b2b1eaaafeb70f6dfea4ef30b5921597360c42ffad4b91cf1a8a7a194f04321da97f3ab863af3d90e55494961d107418";
-
-const parseParticipants = (participants) => {
-  if (!participants) return [];
-  if (typeof participants === "string") {
-    try {
-      return JSON.parse(participants);
-    } catch (e) {
-      console.error("解析participants失败:", e);
-      return [];
-    }
-  }
-  return Array.isArray(participants) ? participants : [];
-};
 
 const extractUserIds = (participants) => {
   return participants
