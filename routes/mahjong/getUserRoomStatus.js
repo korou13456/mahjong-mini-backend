@@ -2,7 +2,9 @@ const db = require("../../config/database");
 
 const getUserRoomStatus = async (req, res) => {
   try {
-    const { userId } = req.query;
+    const userId = req.user.userId;
+
+    console.log(userId, "====>>userId");
 
     if (!userId) {
       return res.status(400).json({

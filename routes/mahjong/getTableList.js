@@ -1,11 +1,13 @@
+const jwt = require("jsonwebtoken");
 const db = require("../../config/database");
+const JWT_SECRET =
+  "bd57f641483e885e3bdf7f6a3e538e58b2b1eaaafeb70f6dfea4ef30b5921597360c42ffad4b91cf1a8a7a194f04321da97f3ab863af3d90e55494961d107418";
 
-// 解析participants字段（支持字符串JSON和数组格式）
 const parseParticipants = (participants) => {
   if (!participants) return [];
   if (typeof participants === "string") {
     try {
-      participants = JSON.parse(participants);
+      return JSON.parse(participants);
     } catch (e) {
       console.error("解析participants失败:", e);
       return [];
@@ -14,7 +16,6 @@ const parseParticipants = (participants) => {
   return Array.isArray(participants) ? participants : [];
 };
 
-// 从participants数组中提取有效的用户ID
 const extractUserIds = (participants) => {
   return participants
     .map((id) => Number(id))
@@ -27,19 +28,31 @@ const getTableList = async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    // 1. 先查询所有需要更新的过期房间
+    // ✅ 尝试解析 token，但不强制要求
+    let currentUserId = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        currentUserId = decoded.id; // 成功解析
+      } catch (err) {
+        console.warn("Token无效或已过期，但不影响查询");
+      }
+    }
+
+    // 这里开始和你原来一样
     const findExpiredSql = `
       SELECT id, participants 
       FROM table_list 
       WHERE status = 0 
         AND (start_time < NOW() OR TIMESTAMPDIFF(HOUR, create_time, NOW()) > 2)
     `;
-
     const [expiredRooms] = await connection.execute(findExpiredSql);
 
-    // 2. 批量更新这些房间状态为已取消
     if (expiredRooms.length > 0) {
-      const expiredRoomIds = expiredRooms.map((room) => room.id);
+      const expiredRoomIds = expiredRooms.map((r) => r.id);
       const placeholders = expiredRoomIds.map(() => "?").join(",");
 
       await connection.execute(
@@ -47,27 +60,22 @@ const getTableList = async (req, res) => {
         expiredRoomIds
       );
 
-      // 3. 批量更新这些房间内用户的状态
       const allUserIds = [];
-      expiredRooms.forEach((room) => {
-        const participants = parseParticipants(room.participants);
-        const validUserIds = extractUserIds(participants);
-        allUserIds.push(...validUserIds);
+      expiredRooms.forEach((r) => {
+        const participants = parseParticipants(r.participants);
+        allUserIds.push(...extractUserIds(participants));
       });
 
       if (allUserIds.length > 0) {
         const uniqueUserIds = [...new Set(allUserIds)];
         const userPlaceholders = uniqueUserIds.map(() => "?").join(",");
-
         await connection.execute(
-          `UPDATE users SET status = 0, enter_room_id = NULL 
-           WHERE id IN (${userPlaceholders})`,
+          `UPDATE users SET status = 0, enter_room_id = NULL WHERE id IN (${userPlaceholders})`,
           uniqueUserIds
         );
       }
     }
 
-    // 4. 查询有效的房间列表
     const selectSql = `
       SELECT 
         id,
@@ -83,19 +91,17 @@ const getTableList = async (req, res) => {
         gender_pref as genderPref,
         status,
         create_time as createTime
-      FROM \`table_list\` 
+      FROM table_list 
       WHERE status = 0 
         AND TIMESTAMPDIFF(HOUR, create_time, NOW()) <= 2
         AND start_time >= NOW()
       ORDER BY create_time DESC
     `;
-
     const [results] = await connection.execute(selectSql);
 
-    // 5. 处理用户信息（原有逻辑）
+    // 处理 participants → 用户详情
     const userIds = new Set();
     const parsedParticipantsMap = new Map();
-
     results.forEach((row, index) => {
       const participants = parseParticipants(row.participants);
       const validUserIds = extractUserIds(participants);
@@ -115,21 +121,32 @@ const getTableList = async (req, res) => {
           avatar_url as avatarUrl,
           gender,
           phone_num as phoneNum
-        FROM \`users\`
+        FROM users
         WHERE id IN (${placeholders})
       `;
       const [userResults] = await connection.execute(userSql, userIdArray);
-
-      userResults.forEach((user) => {
-        userMap[user.id] = user;
-      });
+      userResults.forEach((u) => (userMap[u.id] = u));
     }
 
     const processedResults = results.map((row, index) => {
       const userIds = parsedParticipantsMap.get(index) || [];
+      const isCurrentRoom = currentUserId
+        ? userIds.includes(currentUserId)
+        : false;
       row.participants = userIds
-        .map((userId) => userMap[userId])
-        .filter((user) => user !== undefined);
+        .map((uid) => {
+          const user = userMap[uid];
+          if (!user) return null;
+          return {
+            ...user,
+            ...(currentUserId && uid === currentUserId ? { isMe: true } : {}),
+          };
+        })
+        .filter(Boolean);
+
+      if (isCurrentRoom) {
+        row.isCurrentRoom = true;
+      }
       return row;
     });
 

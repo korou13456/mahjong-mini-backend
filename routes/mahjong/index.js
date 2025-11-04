@@ -1,28 +1,36 @@
 const express = require("express");
 const router = express.Router();
+const authMiddleware = require("../../middleware/authMiddleware");
+
 const getTableList = require("./getTableList");
 const enterRoom = require("./enterRoom");
 const exitRoom = require("./exitRoom");
 const getConfigList = require("./getConfigList");
 const getStoreList = require("./getStoreList");
 const createRoom = require("./createRoom");
-const userRoomStatus = require("./userRoomStatus");
+const getUserRoomStatus = require("./getUserRoomStatus");
+const login = require("./login");
+const getUserInformation = require("./getUserInformation");
 const aa = require("./aa");
 
 // 获取麻将房间列表
 router.get("/get-table-list", getTableList);
 // 加入房间
-router.post("/enter-room", enterRoom);
+router.post("/enter-room", authMiddleware, enterRoom);
 // 退出房间
-router.post("/exit-room", exitRoom);
+router.post("/exit-room", authMiddleware, exitRoom);
 // 配置接口
 router.get("/get-config-list", getConfigList);
 // 获取商家列表
 router.get("/get-store-list", getStoreList);
 // 创建房间
-router.post("/create-room", createRoom);
+router.post("/create-room", authMiddleware, createRoom);
 // 获取用户当前状态
-router.get("/user-room-status", userRoomStatus);
+router.get("/get-user-room-status", authMiddleware, getUserRoomStatus);
+// 获取用户信息
+router.get("/get-user-information", authMiddleware, getUserInformation);
+// 登录接口
+router.post("/login", login);
 
 // 测试
 router.get("/aa", aa);

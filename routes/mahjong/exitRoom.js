@@ -7,17 +7,18 @@ const exitRoom = async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    const { tableId, userId } = req.body;
+    const { tableId } = req.body;
+    const userId = req.user.userId;
 
-    if (!tableId || !userId) {
+    if (!tableId) {
       return res.status(400).json({
         success: false,
-        message: "缺少必要参数：tableId 和 userId",
+        message: "缺少必要参数：tableId",
       });
     }
 
     const [tables] = await connection.execute(
-      "SELECT participants, status FROM `table_list` WHERE id = ?",
+      "SELECT participants, status, host_id FROM `table_list` WHERE id = ?",
       [tableId]
     );
 
@@ -50,10 +51,23 @@ const exitRoom = async (req, res) => {
 
     participants.splice(userIndex, 1);
 
-    // 更新桌子参与者列表
+    // 如果退出的是房主
+    let newHostId = table.host_id;
+    if (table.host_id === parseInt(userId)) {
+      if (participants.length > 0) {
+        newHostId = participants[0]; // 有人就换成第一个参与者
+      } else {
+        newHostId = parseInt(userId); // 没人了，保留最后退出者id作为host_id
+      }
+    }
+
+    // 如果没人了，房间状态改为3，否则保持原状态
+    const newStatus = participants.length === 0 ? 3 : table.status;
+
+    // 更新桌子参与者列表、host_id 和状态
     await connection.execute(
-      "UPDATE `table_list` SET participants = ? WHERE id = ?",
-      [JSON.stringify(participants), tableId]
+      "UPDATE `table_list` SET participants = ?, host_id = ?, status = ? WHERE id = ?",
+      [JSON.stringify(participants), newHostId, newStatus, tableId]
     );
 
     // 更新用户状态为0（空闲）
@@ -71,6 +85,8 @@ const exitRoom = async (req, res) => {
         tableId,
         userId,
         currentPlayers: participants.length,
+        newHostId,
+        newStatus,
       },
     });
   } catch (error) {

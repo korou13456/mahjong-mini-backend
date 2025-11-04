@@ -1,117 +1,126 @@
 const db = require("../../config/database");
 
-// 加入房间/切换房间
 const createRoom = async (req, res) => {
   const connection = await db.getConnection();
 
   try {
     await connection.beginTransaction();
 
-    const { userId, tableId, currentTableId } = req.body;
+    const host_id = req.user.userId;
+    const {
+      pay_type,
+      scoring_tier,
+      special_notes,
+      start_time,
+      store_id,
+      duration,
+      mahjong_type,
+      gender_pref = 0,
+      currentTableId,
+    } = req.body;
 
-    if (!userId || !tableId) {
+    if (!start_time || !store_id) {
       return res.status(400).json({
+        code: 500,
         success: false,
-        message: "缺少必要参数：userId 和 tableId",
+        message: "缺少必要参数：start_time、store_id",
       });
     }
 
-    // 1. 如果用户当前在房间中，先退出
+    // 先判断用户是否在房间中，如果在，就先退出当前房间
     if (currentTableId) {
-      const [currentTables] = await connection.execute(
-        "SELECT participants FROM `table_list` WHERE id = ?",
+      const [tables] = await connection.execute(
+        "SELECT participants, status, host_id FROM `table_list` WHERE id = ?",
         [currentTableId]
       );
 
-      if (currentTables.length > 0) {
-        const currentTable = currentTables[0];
-        let currentParticipants = [];
+      if (tables.length > 0) {
+        const table = tables[0];
+        let participants = [];
 
-        if (currentTable.participants) {
-          currentParticipants =
-            typeof currentTable.participants === "string"
-              ? JSON.parse(currentTable.participants)
-              : currentTable.participants;
+        if (table.participants) {
+          participants =
+            typeof table.participants === "string"
+              ? JSON.parse(table.participants)
+              : table.participants;
         }
 
-        // 从当前房间移除用户
-        const userIndex = currentParticipants.indexOf(parseInt(userId));
+        const userIndex = participants.indexOf(parseInt(host_id));
         if (userIndex !== -1) {
-          currentParticipants.splice(userIndex, 1);
+          participants.splice(userIndex, 1);
+
+          // 如果退出的是房主，换成下一个或者保留最后退出者id
+          let newHostId = table.host_id;
+          if (table.host_id === parseInt(host_id)) {
+            if (participants.length > 0) {
+              newHostId = participants[0];
+            } else {
+              newHostId = parseInt(host_id);
+            }
+          }
+
+          // 房间没人时，状态变为3
+          const newStatus = participants.length === 0 ? 3 : table.status;
+
+          // 更新退出房间的参与者列表、host_id和状态
           await connection.execute(
-            "UPDATE `table_list` SET participants = ? WHERE id = ?",
-            [JSON.stringify(currentParticipants), currentTableId]
+            "UPDATE `table_list` SET participants = ?, host_id = ?, status = ? WHERE id = ?",
+            [JSON.stringify(participants), newHostId, newStatus, currentTableId]
+          );
+
+          // 更新用户状态为0，清空enter_room_id
+          await connection.execute(
+            "UPDATE users SET status = 0, enter_room_id = NULL WHERE user_id = ?",
+            [host_id]
           );
         }
       }
     }
 
-    // 2. 加入目标房间
-    const [targetTables] = await connection.execute(
-      "SELECT participants FROM `table_list` WHERE id = ?",
-      [tableId]
+    // 创建新房间
+    const [result] = await connection.execute(
+      `INSERT INTO table_list 
+       (host_id, pay_type, scoring_tier, special_notes, start_time, store_id, duration, mahjong_type, gender_pref, participants) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        host_id,
+        pay_type || 0,
+        scoring_tier || 0,
+        special_notes || "",
+        start_time,
+        store_id,
+        duration || 0,
+        mahjong_type || 0,
+        gender_pref,
+        JSON.stringify([host_id]),
+      ]
     );
 
-    if (targetTables.length === 0) {
-      await connection.rollback();
-      return res.status(404).json({
-        success: false,
-        message: "目标房间不存在",
-      });
-    }
+    const roomId = result.insertId;
 
-    const targetTable = targetTables[0];
-    let targetParticipants = [];
-
-    if (targetTable.participants) {
-      targetParticipants =
-        typeof targetTable.participants === "string"
-          ? JSON.parse(targetTable.participants)
-          : targetTable.participants;
-    }
-
-    // 检查是否已在目标房间
-    if (targetParticipants.includes(parseInt(userId))) {
-      await connection.rollback();
-      return res.status(400).json({
-        success: false,
-        message: "您已经在该房间中",
-      });
-    }
-
-    // 检查目标房间是否满员
-    if (targetParticipants.length >= 4) {
-      await connection.rollback();
-      return res.status(400).json({
-        success: false,
-        message: "目标房间已满员（最多4人），无法加入",
-      });
-    }
-
-    targetParticipants.push(parseInt(userId));
-    await connection.execute(
-      "UPDATE `table_list` SET participants = ? WHERE id = ?",
-      [JSON.stringify(targetParticipants), tableId]
-    );
-
-    // 3. 更新用户状态
+    // 更新用户状态为在房间中，并设置进入的房间ID
     await connection.execute(
       "UPDATE users SET status = 1, enter_room_id = ? WHERE user_id = ?",
-      [tableId, userId]
+      [roomId, host_id]
     );
 
     await connection.commit();
 
     res.json({
+      code: 200,
       success: true,
-      message: currentTableId ? "成功切换房间" : "成功加入房间",
+      message: "房间创建成功",
+      data: {
+        room_id: roomId,
+      },
     });
   } catch (error) {
     await connection.rollback();
-    console.error("切换房间错误:", error);
+    console.error("创建房间错误:", error);
     res.status(500).json({
+      code: 500,
       success: false,
-      message: "切换房间失败",
+      message: "创建房间失败",
       error: error.message,
     });
   } finally {
