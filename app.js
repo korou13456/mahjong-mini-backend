@@ -38,5 +38,9 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(port, () => {
-  console.log(`✅ 服务器运行在 http://localhost:${port}`);
+  const isProd = (process.env.NODE_ENV || "development") === "production";
+  const host = isProd
+    ? process.env.PUBLIC_HOST || "8.148.205.183"
+    : "localhost";
+  console.log(`✅ 服务器运行在 http://${host}:${port}`);
 });
