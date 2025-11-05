@@ -1,8 +1,7 @@
 const jwt = require("jsonwebtoken");
 const db = require("../../config/database");
 const { parseParticipants } = require("../../utils/roomHelpers");
-const JWT_SECRET =
-  "bd57f641483e885e3bdf7f6a3e538e58b2b1eaaafeb70f6dfea4ef30b5921597360c42ffad4b91cf1a8a7a194f04321da97f3ab863af3d90e55494961d107418";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const extractUserIds = (participants) => {
   return participants
@@ -16,21 +15,20 @@ const getTableList = async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    // ✅ 尝试解析 token，但不强制要求
+    // ✅ 尝试解析 token（非强制）
     let currentUserId = null;
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.split(" ")[1];
       try {
         const decoded = jwt.verify(token, JWT_SECRET);
-
-        currentUserId = decoded.userId; // 成功解析
-      } catch (err) {
+        currentUserId = decoded.userId;
+      } catch {
         console.warn("Token无效或已过期，但不影响查询");
       }
     }
 
-    // 查询过期房间，更新状态及用户状态
+    // ✅ 查找过期房间并更新状态
     const findExpiredSql = `
       SELECT id, participants 
       FROM table_list 
@@ -42,7 +40,6 @@ const getTableList = async (req, res) => {
     if (expiredRooms.length > 0) {
       const expiredRoomIds = expiredRooms.map((r) => r.id);
       const placeholders = expiredRoomIds.map(() => "?").join(",");
-
       await connection.execute(
         `UPDATE table_list SET status = 3 WHERE id IN (${placeholders})`,
         expiredRoomIds
@@ -64,7 +61,7 @@ const getTableList = async (req, res) => {
       }
     }
 
-    // 查询活跃房间列表
+    // ✅ 查询活跃房间列表
     const selectSql = `
       SELECT 
         id,
@@ -88,16 +85,20 @@ const getTableList = async (req, res) => {
     `;
     const [results] = await connection.execute(selectSql);
 
-    // 处理 participants → 用户详情
+    // ✅ 收集所有用户ID 和 store_id
     const userIds = new Set();
+    const storeIds = new Set();
     const parsedParticipantsMap = new Map();
+
     results.forEach((row, index) => {
       const participants = parseParticipants(row.participants);
       const validUserIds = extractUserIds(participants);
       parsedParticipantsMap.set(index, validUserIds);
       validUserIds.forEach((id) => userIds.add(id));
+      if (row.storeId) storeIds.add(row.storeId);
     });
 
+    // ✅ 批量查询用户信息
     const userMap = {};
     if (userIds.size > 0) {
       const userIdArray = Array.from(userIds);
@@ -118,12 +119,40 @@ const getTableList = async (req, res) => {
       userResults.forEach((u) => (userMap[u.userId] = u));
     }
 
-    // 组装最终结果，给当前用户加标记
+    // ✅ 批量查询门店信息
+    const storeMap = {};
+    if (storeIds.size > 0) {
+      const storeIdArray = Array.from(storeIds);
+      const placeholders = storeIdArray.map(() => "?").join(",");
+      const storeSql = `
+        SELECT 
+          id as storeId,
+          store_name as storeName,
+          store_image as storeImage,
+          address_detail as addressDetail,
+          province,
+          city,
+          district,
+          latitude,
+          longitude,
+          manager_name as managerName,
+          manager_phone as managerPhone,
+          service_wxid as serviceWxid,
+          status as storeStatus
+        FROM stores
+        WHERE id IN (${placeholders})
+      `;
+      const [storeResults] = await connection.execute(storeSql, storeIdArray);
+      storeResults.forEach((s) => (storeMap[s.storeId] = s));
+    }
+
+    // ✅ 组装返回数据
     const processedResults = results.map((row, index) => {
       const userIds = parsedParticipantsMap.get(index) || [];
       const isCurrentRoom = currentUserId
         ? userIds.includes(currentUserId)
         : false;
+
       row.participants = userIds
         .map((uid) => {
           const user = userMap[uid];
@@ -135,9 +164,9 @@ const getTableList = async (req, res) => {
         })
         .filter(Boolean);
 
-      if (isCurrentRoom) {
-        row.isCurrentRoom = true;
-      }
+      row.isCurrentRoom = isCurrentRoom;
+      row.storeInfo = storeMap[row.storeId] || null;
+
       return row;
     });
 

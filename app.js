@@ -1,5 +1,11 @@
 // app.js
-require("dotenv").config();
+const path = require("path");
+
+// 根据 NODE_ENV 加载对应的环境变量文件
+const nodeEnv = process.env.NODE_ENV || "development";
+const envFile = nodeEnv === "production" ? ".env.production" : ".env";
+require("dotenv").config({ path: path.resolve(process.cwd(), envFile) });
+
 const express = require("express");
 const cors = require("cors");
 const db = require("./config/database");

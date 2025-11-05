@@ -1,5 +1,4 @@
 const mysql = require("mysql2");
-require("dotenv").config();
 
 // 归一化 host，避免 macOS 上 localhost 解析为 ::1 导致连接被拒绝
 const configuredHost = process.env.DB_HOST || "127.0.0.1";
@@ -18,6 +17,11 @@ const pool = mysql.createPool({
   queueLimit: Number(process.env.DB_QUEUE_LIMIT || 0),
 });
 
-console.log("✅ MySQL 连接池创建成功");
+const nodeEnv = process.env.NODE_ENV || "development";
+console.log(
+  `✅ MySQL 连接池创建成功 (环境: ${nodeEnv}, 数据库: ${normalizedHost}:${
+    process.env.DB_PORT || 3306
+  })`
+);
 
 module.exports = pool.promise(); // 导出 promise

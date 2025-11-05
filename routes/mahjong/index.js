@@ -12,7 +12,6 @@ const createRoom = require("./createRoom");
 const getUserRoomStatus = require("./getUserRoomStatus");
 const login = require("./login");
 const getUserInformation = require("./getUserInformation");
-const aa = require("./aa");
 
 // 获取麻将房间列表
 router.get("/get-table-list", getTableList);
@@ -32,8 +31,5 @@ router.get("/get-user-room-status", authMiddleware, getUserRoomStatus);
 router.get("/get-user-information", authMiddleware, getUserInformation);
 // 登录接口
 router.post("/login", login);
-
-// 测试
-router.get("/aa", aa);
 
 module.exports = router;

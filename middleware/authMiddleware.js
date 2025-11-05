@@ -5,8 +5,8 @@ const JWT_SECRET = process.env.JWT_SECRET || "change_me_in_env"; // 跟登录保
 const authMiddleware = (req, res, next) => {
   const token =
     req.headers.authorization?.replace("Bearer ", "") ||
-    req.query.token ||
-    req.body.token;
+    req.query?.token ||
+    req.body?.token;
 
   if (!token) {
     return res.status(401).json({ code: 401, message: "未登录或Token缺失" });
