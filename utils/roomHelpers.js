@@ -114,7 +114,7 @@ async function joinRoom(connection, tableId, userId, maxPlayers = 4) {
     [tableId, numericUserId]
   );
 
-  return { changed: true, participants };
+  return { changed: true, participants, participants_num: participants.length };
 }
 
 module.exports = {

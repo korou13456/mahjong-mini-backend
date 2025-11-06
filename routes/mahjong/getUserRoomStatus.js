@@ -5,8 +5,6 @@ const getUserRoomStatus = async (req, res) => {
   try {
     const userId = req.user.userId;
 
-    console.log(userId, "====>>userId");
-
     if (!userId) {
       return res.status(400).json({
         code: 400,

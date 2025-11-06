@@ -1,8 +1,11 @@
 // routes/mahjong/enterRoom.js
 const db = require("../../config/database");
-const { leaveRoom, joinRoom } = require("../../utils/roomHelpers");
+const {
+  leaveRoom,
+  joinRoom,
+  parseParticipants,
+} = require("../../utils/roomHelpers");
 
-// 加入房间/切换房间（合并退出逻辑）
 const enterRoom = async (req, res) => {
   const connection = await db.getConnection();
 
@@ -19,12 +22,12 @@ const enterRoom = async (req, res) => {
       });
     }
 
-    // 1. 如果用户当前在房间中，先退出当前房间（退出逻辑统一）
+    // 1️⃣ 如果用户当前在房间中，先退出
     if (currentTableId) {
       await leaveRoom(connection, currentTableId, userId);
     }
 
-    // 2. 加入目标房间
+    // 2️⃣ 加入目标房间
     const joinResult = await joinRoom(connection, tableId, userId, 4);
 
     if (joinResult.reason === "TABLE_NOT_FOUND") {
@@ -47,6 +50,51 @@ const enterRoom = async (req, res) => {
         success: false,
         message: "目标房间已满员（最多4人），无法加入",
       });
+    }
+
+    // ✅ 当满员时，修改房间状态 + 更新4个用户状态
+    if (joinResult.participants_num >= 4) {
+      // 1. 更新房间状态为“已成局”，记录成局时间
+      const updateRoomSql = `
+        UPDATE table_list
+        SET status = 1,
+            start_match_time = NOW()
+        WHERE id = ?
+      `;
+      await connection.query(updateRoomSql, [tableId]);
+      console.log(`房间 ${tableId} 已满员，更新为已成局状态`);
+
+      // 2. 获取该房间的参与者ID（从 participants JSON 字段中取出）
+      const [rows] = await connection.query(
+        `SELECT participants FROM table_list WHERE id = ?`,
+        [tableId]
+      );
+
+      if (rows.length && rows[0].participants) {
+        const participantIds = parseParticipants(rows[0].participants); // 数组形式的用户ID
+        if (Array.isArray(participantIds) && participantIds.length) {
+          // 3. 批量更新这些用户的状态为闲置，并清空 enter_room_id
+          const updateUsersSql = `
+            UPDATE users
+            SET status = 0,
+                enter_room_id = NULL
+            WHERE user_id IN (?)
+          `;
+          await connection.query(updateUsersSql, [participantIds]);
+          console.log(`已将房间 ${tableId} 的玩家状态重置为空闲`);
+
+          // 4. 将这4个用户插入 game_sessions 表
+          const insertSql = `
+            INSERT INTO game_sessions (table_id, user_id, status)
+            VALUES ?
+          `;
+          const insertValues = participantIds.map((uid) => [tableId, uid, 0]);
+          await connection.query(insertSql, [insertValues]);
+          console.log(
+            `已将房间 ${tableId} 的 ${participantIds.length} 位玩家插入 game_sessions`
+          );
+        }
+      }
     }
 
     await connection.commit();

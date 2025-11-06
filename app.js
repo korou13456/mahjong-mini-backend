@@ -1,39 +1,57 @@
 // app.js
 const path = require("path");
-
-// 根据 NODE_ENV 加载对应的环境变量文件
-const nodeEnv = process.env.NODE_ENV || "development";
-const envFile = nodeEnv === "production" ? ".env.production" : ".env";
-require("dotenv").config({ path: path.resolve(process.cwd(), envFile) });
-
 const express = require("express");
 const cors = require("cors");
-const db = require("./config/database");
+const fs = require("fs");
+require("dotenv").config({
+  path: path.resolve(
+    process.cwd(),
+    process.env.NODE_ENV === "production" ? ".env.production" : ".env"
+  ),
+});
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
 
+// 跨域和json解析
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
+// 确保 uploads 目录存在
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// 静态资源托管
+app.use("/uploads", express.static(uploadDir));
+
+// 挂载上传路由
+app.use("/api/upload", require("./routes/upload"));
+
+// 挂载麻将相关路由
+app.use("/api/mahjong", require("./routes/mahjong"));
+
+// 根路由测试
 app.get("/", (req, res) => {
-  const isProd = (process.env.NODE_ENV || "development") === "production";
+  const isProd = process.env.NODE_ENV === "production";
   const host = isProd
     ? process.env.PUBLIC_HOST || "8.148.205.183"
     : "localhost";
-  res.json({ message: "后端服务运行正常!111", host, port });
+  res.json({ message: "后端服务运行正常!", host, port });
 });
 
-// 注册活动相关路由
-app.use("/api/mahjong", require("./routes/mahjong"));
+app.get("/test", (req, res) => {
+  res.json({ message: "上传成功" });
+});
 
-// 404 处理
-app.use((req, res, next) => {
+// 404处理
+app.use((req, res) => {
   res.status(404).json({ code: 404, message: "资源未找到" });
 });
 
-// 全局错误处理中间件
-// eslint-disable-next-line no-unused-vars
+// 全局错误处理
 app.use((err, req, res, next) => {
   console.error("Unhandled Error:", err);
   res
@@ -41,8 +59,9 @@ app.use((err, req, res, next) => {
     .json({ code: 500, message: "服务器错误", error: err.message });
 });
 
+// 启动服务
 app.listen(port, () => {
-  const isProd = (process.env.NODE_ENV || "development") === "production";
+  const isProd = process.env.NODE_ENV === "production";
   const host = isProd
     ? process.env.PUBLIC_HOST || "8.148.205.183"
     : "localhost";
