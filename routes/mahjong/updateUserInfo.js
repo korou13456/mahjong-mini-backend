@@ -109,10 +109,21 @@ const updateUserInfo = async (req, res) => {
         // 假设你的头像 URL 是类似 http://host/uploads/filename.jpg
         // 这里提取文件名，拼接成服务器文件绝对路径
         const urlObj = new URL(oldAvatarUrl);
-        const filePath = path.join(process.cwd(), urlObj.pathname);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-          console.log(`删除旧头像文件成功: ${filePath}`);
+        const filename = path.basename(urlObj.pathname);
+
+        // 如果是默认头像文件（gender0.jpg, gender1.jpg, gender2.jpg），则不删除
+        if (
+          filename === "gender0.jpg" ||
+          filename === "gender1.jpg" ||
+          filename === "gender2.jpg"
+        ) {
+          console.log(`跳过删除默认头像文件: ${filename}`);
+        } else {
+          const filePath = path.join(process.cwd(), urlObj.pathname);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            console.log(`删除旧头像文件成功: ${filePath}`);
+          }
         }
       } catch (err) {
         console.warn("删除旧头像文件失败:", err.message);
