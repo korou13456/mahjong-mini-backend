@@ -35,10 +35,7 @@ app.use("/api/mahjong", require("./routes/mahjong"));
 
 // 根路由测试
 app.get("/", (req, res) => {
-  const isProd = process.env.NODE_ENV === "production";
-  const host = isProd
-    ? process.env.PUBLIC_HOST || "8.148.205.183"
-    : "localhost";
+  const host = process.env.PUBLIC_HOST;
   res.json({ message: "后端服务运行正常!", host, port });
 });
 
@@ -61,9 +58,6 @@ app.use((err, req, res, next) => {
 
 // 启动服务
 app.listen(port, () => {
-  const isProd = process.env.NODE_ENV === "production";
-  const host = isProd
-    ? process.env.PUBLIC_HOST || "8.148.205.183"
-    : "localhost";
+  const host = process.env.PUBLIC_HOST;
   console.log(`✅ 服务器运行在 http://${host}:${port}`);
 });

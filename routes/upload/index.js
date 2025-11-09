@@ -6,6 +6,11 @@ const fs = require("fs");
 
 const router = express.Router();
 
+router.get("/", (req, res) => {
+  const htmlPath = path.join(__dirname, "upload.html");
+  res.sendFile(htmlPath);
+});
+
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -38,8 +43,7 @@ const upload = multer({
 router.post("/", upload.single("file"), (req, res) => {
   if (!req.file) return res.status(400).json({ error: "没有上传文件" });
 
-  const isProd = process.env.NODE_ENV === "production";
-  const host = isProd ? process.env.PUBLIC_HOST || "你的生产域名" : "localhost";
+  const host = process.env.PUBLIC_HOST;
   const port = process.env.PORT || 3000;
 
   const fileUrl = `http://${host}:${port}/uploads/${req.file.filename}`;

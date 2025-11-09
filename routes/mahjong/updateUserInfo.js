@@ -2,6 +2,21 @@ const db = require("../../config/database");
 const fs = require("fs");
 const path = require("path");
 
+// 生成完整的文件URL
+function getFileUrl(filename) {
+  const host = process.env.PUBLIC_HOST;
+  const port = process.env.PORT || 3000;
+  return `http://${host}:${port}/uploads/${filename}`;
+}
+
+// 根据gender获取默认头像
+function getDefaultAvatarUrl(gender) {
+  // gender: 0, 1, 2 对应 gender0.jpg, gender1.jpg, gender2.jpg
+  const genderValue = gender || 0;
+  const filename = `gender${genderValue}.jpg`;
+  return getFileUrl(filename);
+}
+
 const updateUserInfo = async (req, res) => {
   const connection = await db.getConnection();
 
@@ -11,7 +26,15 @@ const updateUserInfo = async (req, res) => {
       return res.status(401).json({ message: "未认证或无效的用户" });
     }
 
-    const { nickname, avatar_url, gender } = req.body;
+    const {
+      nickname,
+      avatar_url,
+      gender,
+      province,
+      city,
+      district,
+      if_change_avatar,
+    } = req.body;
 
     const updates = [];
     const params = [];
@@ -40,12 +63,27 @@ const updateUserInfo = async (req, res) => {
       params.push(avatar_url);
     }
     if (gender !== undefined) {
-      if (![0, 1].includes(Number(gender))) {
+      if (![1, 2].includes(Number(gender))) {
         await connection.rollback();
         return res.status(400).json({ message: "gender 参数不合法" });
       }
+      if (if_change_avatar) {
+        const avatar_url = getDefaultAvatarUrl(gender);
+        updates.push("avatar_url = ?");
+        params.push(avatar_url);
+      }
       updates.push("gender = ?");
       params.push(gender);
+    }
+
+    if (
+      province !== undefined &&
+      city !== undefined &&
+      district !== undefined
+    ) {
+      updates.push("province = ?", "city = ?", "district = ?", "location = ?");
+      const location = province + city + district;
+      params.push(province, city, district, location);
     }
 
     if (updates.length === 0) {

@@ -7,6 +7,21 @@ const jwt = require("jsonwebtoken");
 // JWT secret（已从环境变量读取）
 const JWT_SECRET = process.env.JWT_SECRET || "change_me_in_env";
 
+// 生成完整的文件URL
+function getFileUrl(filename) {
+  const host = process.env.PUBLIC_HOST;
+  const port = process.env.PORT || 3000;
+  return `http://${host}:${port}/uploads/${filename}`;
+}
+
+// 根据gender获取默认头像
+function getDefaultAvatarUrl(gender) {
+  // gender: 0, 1, 2 对应 gender0.jpg, gender1.jpg, gender2.jpg
+  const genderValue = gender || 0;
+  const filename = `gender${genderValue}.jpg`;
+  return getFileUrl(filename);
+}
+
 const wechatLogin = async (req, res) => {
   const connection = await db.getConnection();
   try {
@@ -99,9 +114,9 @@ const wechatLogin = async (req, res) => {
       isNewUser = true;
       const userId = await generateUserId(connection);
       const nickname = `用户${userId}`;
-      const avatarUrl = "";
       const gender = 0;
-
+      // 根据gender设置默认头像URL
+      const avatarUrl = getDefaultAvatarUrl(gender);
       const [insertResult] = await connection.execute(
         `INSERT INTO users (user_id, wxid, nickname, avatar_url, gender, phone_num, last_login_at, status, total_game_cnt, total_game_create)
          VALUES (?, ?, ?, ?, ?, ?, NOW(), 0, 0, 0)`,
@@ -111,12 +126,6 @@ const wechatLogin = async (req, res) => {
       user = {
         id: insertResult.insertId,
         user_id: userId,
-        nickname,
-        avatar_url: avatarUrl,
-        gender,
-        phone_num: phoneNumber,
-        total_game_cnt: 0,
-        total_game_create: 0,
       };
     }
 
@@ -138,16 +147,6 @@ const wechatLogin = async (req, res) => {
       message: "登录成功",
       data: {
         token,
-        userInfo: {
-          id: user.id,
-          userId: user.user_id,
-          nickname: user.nickname,
-          avatarUrl: user.avatar_url,
-          gender: user.gender,
-          phoneNum: user.phone_num,
-          totalGameCnt: user.total_game_cnt,
-          totalGameCreate: user.total_game_create,
-        },
         isNewUser,
       },
     });
@@ -165,7 +164,6 @@ const wechatLogin = async (req, res) => {
 };
 
 // generateUserId 和之前一样
-
 async function generateUserId(connection) {
   const timestamp = Date.now().toString().slice(-8);
   const random = Math.random().toString().slice(2, 6);

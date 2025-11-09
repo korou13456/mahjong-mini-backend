@@ -1,5 +1,6 @@
 // routes/mahjong/index.js
 const express = require("express");
+const path = require("path");
 const router = express.Router();
 const authMiddleware = require("../../middleware/authMiddleware");
 
@@ -34,5 +35,15 @@ router.get("/get-user-information", authMiddleware, getUserInformation);
 router.post("/login", login);
 // 更新用户信息接口
 router.post("/update-user-info", authMiddleware, updateUserInfo);
+// 用户协议 H5 页面
+router.get("/agreement-user", (req, res) => {
+  const htmlPath = path.join(__dirname, "agreement", "user.html");
+  res.sendFile(htmlPath);
+});
+// 隐私协议 H5 页面
+router.get("/agreement-privacy", (req, res) => {
+  const htmlPath = path.join(__dirname, "agreement", "privacy.html");
+  res.sendFile(htmlPath);
+});
 
 module.exports = router;

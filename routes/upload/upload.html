@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>文件上传测试</title>
+</head>
+<body>
+    <h2>文件上传测试</h2>
+    <form id="uploadForm" method="post" enctype="multipart/form-data">
+        <input type="file" name="file" required>
+        <button type="submit">上传文件</button>
+    </form>
+
+    <div id="result"></div>
+
+    <script>
+        // 动态获取当前页面的基础URL
+        const baseUrl = window.location.origin;
+        const uploadUrl = `${baseUrl}/api/upload`;
+        
+        // 设置表单的 action
+        document.getElementById('uploadForm').action = uploadUrl;
+        
+        // 使用 Fetch API
+        document.querySelector('form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            const fileInput = document.querySelector('input[type="file"]');
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await fetch(uploadUrl, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                document.getElementById('result').innerHTML = `
+                    <h3>上传成功！</h3>
+                    <p><strong>文件URL:</strong> <a href="${result.url}" target="_blank">${result.url}</a></p>
+                    <p><strong>原始文件名:</strong> ${result.originalName}</p>
+                    <p><strong>文件大小:</strong> ${(result.size / 1024).toFixed(2)} KB</p>
+                    <p><strong>文件类型:</strong> ${result.mimetype}</p>
+                    ${result.mimetype.startsWith('image/') ? `<img src="${result.url}" alt="预览" style="max-width: 300px; margin-top: 10px;">` : ''}
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `<p style="color: red;">上传失败: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
