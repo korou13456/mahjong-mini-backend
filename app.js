@@ -15,7 +15,14 @@ const port = Number(process.env.PORT || 3000);
 
 // 跨域和json解析
 app.use(cors());
-app.use(express.json());
+// capture raw body for signature verification
+app.use(
+  express.json({
+    verify: (req, res, buf) => {
+      req.rawBody = Buffer.from(buf);
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true }));
 
 // 确保 uploads 目录存在
@@ -31,6 +38,8 @@ app.use("/uploads", express.static(uploadDir));
 app.use("/api/upload", require("./routes/upload"));
 
 // 挂载麻将相关路由
+// 启用微信 API 安全校验（仅生产环境有效，且当请求头存在时生效）
+app.use(require("./middleware/wechatApiSecurity")());
 app.use("/api/mahjong", require("./routes/mahjong"));
 
 // 根路由测试
