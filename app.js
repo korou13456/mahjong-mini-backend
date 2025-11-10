@@ -39,6 +39,13 @@ app.get("/", (req, res) => {
   res.json({ message: "后端服务运行正常!", host, port });
 });
 
+// 微信小程序 业务域名验证文件
+app.get("/lJNSP0vVfy.txt", (req, res) => {
+  const verifyPath = path.join(__dirname, "routes", "lJNSP0vVfy.txt");
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.sendFile(verifyPath);
+});
+
 app.get("/test", (req, res) => {
   res.json({ message: "上传成功" });
 });
