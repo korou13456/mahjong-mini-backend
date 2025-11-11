@@ -57,6 +57,7 @@ const getConfigList = async (req, res) => {
             id: item.configId,
             value: item.configValue,
           });
+          break;
         case 6:
           configs.requirements.push({
             id: item.configId,
