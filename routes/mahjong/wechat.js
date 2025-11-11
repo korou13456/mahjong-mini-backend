@@ -9,6 +9,7 @@ const {
  * 读取原始文本请求体（兼容未经过 body-parser 的 text/xml）
  */
 async function readRawText(req) {
+  console.log("服务号get");
   if (req.rawBody) return req.rawBody.toString("utf8");
   if (typeof req.body === "string") return req.body;
   // 没有解析器时，手动读取
