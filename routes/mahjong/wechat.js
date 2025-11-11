@@ -9,7 +9,6 @@ const {
  * 读取原始文本请求体（兼容未经过 body-parser 的 text/xml）
  */
 async function readRawText(req) {
-  console.log("服务号get");
   if (req.rawBody) return req.rawBody.toString("utf8");
   if (typeof req.body === "string") return req.body;
   // 没有解析器时，手动读取
@@ -26,6 +25,7 @@ async function readRawText(req) {
  * 微信服务号服务器配置验证（GET）
  */
 async function wechatVerify(req, res) {
+  console.log("服务号get");
   const { signature, timestamp, nonce, echostr } = req.query || {};
   const token = process.env.WECHAT_TOKEN || "";
   if (!token) {
@@ -35,7 +35,7 @@ async function wechatVerify(req, res) {
   if (expect === signature) {
     return res.status(200).send(echostr || "");
   }
-  return res.status(401).send("signature 校验失败1");
+  return res.status(401).send("signature 校验失败");
 }
 
 /**
