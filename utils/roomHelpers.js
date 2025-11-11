@@ -67,7 +67,7 @@ async function leaveRoom(connection, tableId, userId) {
     }
   }
 
-  const newStatus = participants.length === 0 ? 3 : table.status;
+  const newStatus = participants.length === 0 ? 2 : table.status;
 
   await connection.execute(
     "UPDATE `table_list` SET participants = ?, host_id = ?, status = ? WHERE id = ?",

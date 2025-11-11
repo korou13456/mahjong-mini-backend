@@ -5,6 +5,7 @@ const {
   joinRoom,
   parseParticipants,
 } = require("../../utils/roomHelpers");
+const { pushMessage } = require("../../utils/wechat");
 
 const enterRoom = async (req, res) => {
   const connection = await db.getConnection();
@@ -92,6 +93,32 @@ const enterRoom = async (req, res) => {
           await connection.query(insertSql, [insertValues]);
           console.log(
             `已将房间 ${tableId} 的 ${participantIds.length} 位玩家插入 game_sessions`
+          );
+        }
+        const [userRows] = await connection.query(
+          `SELECT wxid, nickname FROM users WHERE user_id IN (?)`,
+          [participantIds]
+        );
+
+        for (const user of userRows) {
+          if (!user.wxid) continue;
+
+          await pushMessage(
+            "TABLE_SUCCES_USER", // 注意和模板名对应
+            user.wxid,
+            {
+              tableId, // 预约码
+              roomTitle: "4人已拼成，准备开局", // 订单名称
+              nickname: user.nickname, // 你模板里没用但可以传备用
+              storeName: "乔斯波麻将馆",
+              storeAddress: "莆田市xx路xx号",
+              storePhone: "0594-xxxxxxx",
+            },
+            "", // 服务号网页跳转链接，不用的话空字符串
+            {
+              appid: "你的小程序appid",
+              pagepath: "pages/hall/index",
+            }
           );
         }
       }
