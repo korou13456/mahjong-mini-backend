@@ -120,7 +120,7 @@ const enterRoom = async (req, res) => {
               nickname: user.nickname, // 你模板里没用但可以传备用
               storeName: "乔斯波麻将馆",
               storeAddress: "莆田市xx路xx号",
-              storePhone: "0594-xxxxxxx",
+              storePhone: 19528427313,
             },
             "", // 服务号网页跳转链接，不用的话空字符串
             miniProgram
