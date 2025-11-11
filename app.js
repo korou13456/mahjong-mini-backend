@@ -53,9 +53,6 @@ app.get("/", (req, res) => {
   res.json({ message: "后端服务运行正常!", host, port });
 });
 
-// 微信消息推送与校验
-app.use("/wechat", require("./routes/wechat"));
-
 // 微信小程序 业务域名验证文件
 app.get("/lJNSP0vVfy.txt", (req, res) => {
   const verifyPath = path.join(__dirname, "routes", "lJNSP0vVfy.txt");

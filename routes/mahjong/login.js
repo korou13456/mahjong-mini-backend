@@ -50,9 +50,8 @@ const wechatLogin = async (req, res) => {
       }
     );
 
-    console.log(wechatResponse.data, "!====>>>wechatResponse.data");
-
-    const { openid, session_key, errcode, errmsg } = wechatResponse.data;
+    const { openid, session_key, unionid, errcode, errmsg } =
+      wechatResponse.data;
 
     if (errcode) {
       return res
@@ -62,6 +61,10 @@ const wechatLogin = async (req, res) => {
 
     if (!openid) {
       return res.status(400).json({ code: 400, message: "获取openid失败" });
+    }
+
+    if (!unionid) {
+      return res.status(400).json({ code: 400, message: "获取unionid失败" });
     }
 
     // 解密手机号函数
@@ -122,9 +125,9 @@ const wechatLogin = async (req, res) => {
       // 根据gender设置默认头像URL
       const avatarUrl = getDefaultAvatarUrl(gender);
       const [insertResult] = await connection.execute(
-        `INSERT INTO users (user_id, wxid, nickname, avatar_url, gender, phone_num, last_login_at, status, total_game_cnt, total_game_create)
-         VALUES (?, ?, ?, ?, ?, ?, NOW(), 0, 0, 0)`,
-        [userId, openid, nickname, avatarUrl, gender, phoneNumber]
+        `INSERT INTO users (user_id, wxid, nickname, avatar_url, gender, phone_num, unionid, last_login_at, status, total_game_cnt, total_game_create)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), 0, 0, 0)`,
+        [userId, openid, nickname, avatarUrl, gender, phoneNumber, unionid]
       );
 
       user = {
@@ -137,6 +140,7 @@ const wechatLogin = async (req, res) => {
     const token = jwt.sign(
       {
         userId: user.user_id,
+        unionid: unionid,
         wxid: openid,
         id: user.id,
       },
