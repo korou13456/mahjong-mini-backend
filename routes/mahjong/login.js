@@ -118,22 +118,79 @@ const wechatLogin = async (req, res) => {
         );
       }
     } else {
-      isNewUser = true;
-      const userId = await generateUserId(connection);
-      const nickname = `用户${userId}`;
-      const gender = 0;
-      // 根据gender设置默认头像URL
-      const avatarUrl = getDefaultAvatarUrl(gender);
-      const [insertResult] = await connection.execute(
-        `INSERT INTO users (user_id, wxid, nickname, avatar_url, gender, phone_num, unionid, last_login_at, status, total_game_cnt, total_game_create)
-         VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), 0, 0, 0)`,
-        [userId, openid, nickname, avatarUrl, gender, phoneNumber, unionid]
+      // 按 unionid 再次检索：如果有对应用户，则将当前小程序 openid 绑定到该记录并完善必要字段
+      const [unionUsers] = await connection.execute(
+        "SELECT id, user_id, nickname, avatar_url, gender, phone_num FROM users WHERE unionid = ? LIMIT 1",
+        [unionid]
       );
+      if (unionUsers.length > 0) {
+        const existed = unionUsers[0];
+        let assignedUserId = existed.user_id;
+        const updates = [];
+        const params = [];
 
-      user = {
-        id: insertResult.insertId,
-        user_id: userId,
-      };
+        // 始终绑定 wxid 并更新时间
+        updates.push("wxid = ?");
+        params.push(openid);
+        updates.push("last_login_at = NOW()");
+
+        // 如果有手机号且原记录没有，则写入
+        if (phoneNumber && !existed.phone_num) {
+          updates.push("phone_num = ?");
+          params.push(phoneNumber);
+        }
+
+        // 该记录可能来自服务号关注，只含 unionid；若无 user_id，则生成并补齐必要基础信息
+        if (!assignedUserId) {
+          assignedUserId = await generateUserId(connection);
+          const fallbackGender = 0;
+          const fallbackNickname = `用户${assignedUserId}`;
+          const fallbackAvatar = getDefaultAvatarUrl(fallbackGender);
+          updates.push("user_id = ?");
+          params.push(assignedUserId);
+          // 仅在为空时补齐基础信息，避免覆盖已有资料
+          updates.push(
+            "nickname = COALESCE(NULLIF(nickname, ''), ?)",
+            "avatar_url = COALESCE(NULLIF(avatar_url, ''), ?)",
+            "gender = IFNULL(gender, ?)"
+          );
+          params.push(fallbackNickname, fallbackAvatar, fallbackGender);
+          // 确保状态与计数等为默认（不强制覆盖已有）
+          updates.push(
+            "status = IFNULL(status, 0)",
+            "total_game_cnt = IFNULL(total_game_cnt, 0)",
+            "total_game_create = IFNULL(total_game_create, 0)"
+          );
+        }
+
+        params.push(existed.id);
+        const sql = `UPDATE users SET ${updates.join(", ")} WHERE id = ?`;
+        await connection.execute(sql, params);
+
+        user = {
+          id: existed.id,
+          user_id: assignedUserId || existed.user_id,
+        };
+        isNewUser = false;
+      } else {
+        // 既无 wxid 也无 unionid 的记录，才执行插入
+        isNewUser = true;
+        const userId = await generateUserId(connection);
+        const nickname = `用户${userId}`;
+        const gender = 0;
+        // 根据gender设置默认头像URL
+        const avatarUrl = getDefaultAvatarUrl(gender);
+        const [insertResult] = await connection.execute(
+          `INSERT INTO users (user_id, wxid, nickname, avatar_url, gender, phone_num, unionid, last_login_at, status, total_game_cnt, total_game_create)
+           VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), 0, 0, 0)`,
+          [userId, openid, nickname, avatarUrl, gender, phoneNumber, unionid]
+        );
+
+        user = {
+          id: insertResult.insertId,
+          user_id: userId,
+        };
+      }
     }
 
     // 生成JWT Token，有效期7天，可根据需求调整

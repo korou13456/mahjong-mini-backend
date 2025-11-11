@@ -6,6 +6,7 @@ const {
 } = require("../../utils/wechatVerify");
 const axios = require("axios");
 const xml2js = require("xml2js");
+const db = require("../../config/database");
 
 /**
  * 读取原始文本请求体（兼容未经过 body-parser 的 text/xml）
@@ -145,6 +146,45 @@ async function wechatReceive(req, res) {
         const userInfo = await getUserInfo(accessToken, openid);
         console.log("获取到的用户信息:", userInfo);
         console.log("用户unionid:", userInfo.unionid || "无unionid");
+
+        // 根据 unionid 处理用户与服务号 openid 的绑定
+        const unionid = userInfo.unionid;
+        if (unionid) {
+          const connection = await db.getConnection();
+          try {
+            await connection.beginTransaction();
+            const [rows] = await connection.execute(
+              "SELECT id FROM users WHERE unionid = ? LIMIT 1",
+              [unionid]
+            );
+            if (rows.length > 0) {
+              // 已存在用户，更新其服务号 openid
+              await connection.execute(
+                "UPDATE users SET service_openid = ?, is_subscribed = 1 WHERE id = ?",
+                [openid, rows[0].id]
+              );
+            } else {
+              // 不存在则创建仅包含 unionid 与 service_openid 的记录
+              await connection.execute(
+                `INSERT INTO users (unionid, service_openid, status, user_type, is_subscribed, total_game_cnt, total_game_create)
+                 VALUES (?, ?, 0, 0, 1, 0, 0)`,
+                [unionid, openid]
+              );
+            }
+            await connection.commit();
+          } catch (dbErr) {
+            console.error("处理用户unionid/openid写库失败:", dbErr);
+            try {
+              await connection.rollback();
+            } catch (_) {}
+          } finally {
+            try {
+              connection.release();
+            } catch (_) {}
+          }
+        } else {
+          console.warn("该关注用户未返回unionid，跳过用户绑定处理");
+        }
       } catch (err) {
         console.error("获取用户信息失败:", err);
       }
