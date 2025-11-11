@@ -34,7 +34,7 @@ async function wechatVerify(req, res) {
   if (expect === signature) {
     return res.status(200).send(echostr || "");
   }
-  return res.status(401).send("signature 校验失败");
+  return res.status(401).send("signature 校验失败1");
 }
 
 /**
@@ -42,6 +42,7 @@ async function wechatVerify(req, res) {
  */
 async function wechatReceive(req, res) {
   try {
+    console.log("服务号消息开始");
     const { timestamp = "", nonce = "", msg_signature = "" } = req.query || {};
     const token = process.env.WECHAT_TOKEN || "";
     const encodingAesKey = process.env.WECHAT_ENCODING_AES_KEY || "";
