@@ -26,9 +26,9 @@ async function readRawText(req) {
  */
 async function wechatVerify(req, res) {
   const { signature, timestamp, nonce, echostr } = req.query || {};
-  const token = process.env.WECHAT_OA_TOKEN || "";
+  const token = process.env.WECHAT_TOKEN || "";
   if (!token) {
-    return res.status(500).send("WECHAT_OA_TOKEN 未配置，无法完成服务器校验");
+    return res.status(500).send("WECHAT_TOKEN 未配置，无法完成服务器校验");
   }
   const expect = buildSignature(token, timestamp || "", nonce || "");
   if (expect === signature) {
@@ -43,9 +43,9 @@ async function wechatVerify(req, res) {
 async function wechatReceive(req, res) {
   try {
     const { timestamp = "", nonce = "", msg_signature = "" } = req.query || {};
-    const token = process.env.WECHAT_OA_TOKEN || "";
-    const encodingAesKey = process.env.WECHAT_OA_ENCODING_AES_KEY || "";
-    const appId = process.env.WECHAT_OA_APPID || "";
+    const token = process.env.WECHAT_TOKEN || "";
+    const encodingAesKey = process.env.WECHAT_ENCODING_AES_KEY || "";
+    const appId = process.env.WX_APP_ID || "";
 
     const raw = await readRawText(req);
     console.log("[WeChat OA] Incoming query:", req.query);
@@ -63,9 +63,7 @@ async function wechatReceive(req, res) {
     if (!token || !encodingAesKey || !appId) {
       return res
         .status(500)
-        .send(
-          "WECHAT_OA_TOKEN / WECHAT_OA_ENCODING_AES_KEY / WECHAT_OA_APPID 未配置"
-        );
+        .send("WECHAT_TOKEN / WECHAT_ENCODING_AES_KEY / WX_APP_ID 未配置");
     }
     const expectMsgSig = buildMsgSignature(token, timestamp, nonce, encrypt);
     if (expectMsgSig !== msg_signature) {
