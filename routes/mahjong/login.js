@@ -50,6 +50,8 @@ const wechatLogin = async (req, res) => {
       }
     );
 
+    console.log(wechatResponse.data, "!====>>>wechatResponse.data");
+
     const { openid, session_key, errcode, errmsg } = wechatResponse.data;
 
     if (errcode) {
