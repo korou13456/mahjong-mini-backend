@@ -39,6 +39,13 @@ const exitRoom = async (req, res) => {
 
     await connection.commit();
 
+    if (result.newStatus == 1 || result.newStatus == 2) {
+      return res.json({
+        success: true,
+        message: "当前房间已经不可操作",
+      });
+    }
+
     res.json({
       success: true,
       message: "成功退出房间",
