@@ -192,27 +192,27 @@ async function wechatReceive(req, res) {
       // 关注回复图文消息
       const title = "桌友们都在等你～";
       const description = `关注成功啦！🎲
-以后拼桌成功、好友邀局、活动更新，我们都会第一时间告诉你。
-别错过每一局好玩的人！`;
-      const picUrl = "https://yourdomain.com/path/to/card-image.jpg"; // 你的小卡片图片地址
-      const url = "https://yourdomain.com/mini-program-launch-link"; // 点击跳转链接
+         以后拼桌成功、好友邀局、活动更新，我们都会第一时间告诉你。
+         别错过每一局好玩的人！`;
+      const picUrl =
+        "https://majhongapp.cn/uploads/1763274689590-13b5a5b2b8f57.png"; // 你的小卡片图片地址
 
       const replyXml = `
-      <xml>
-        <ToUserName><![CDATA[${openid}]]></ToUserName>
-        <FromUserName><![CDATA[${appId}]]></FromUserName>
-        <CreateTime>${Math.floor(Date.now() / 1000)}</CreateTime>
-        <MsgType><![CDATA[news]]></MsgType>
-        <ArticleCount>1</ArticleCount>
-        <Articles>
-          <item>
-            <Title><![CDATA[${title}]]></Title>
-            <Description><![CDATA[${description}]]></Description>
-            <PicUrl><![CDATA[${picUrl}]]></PicUrl>
-            <Url><![CDATA[${url}]]></Url>
-          </item>
-        </Articles>
-      </xml>`.trim();
+        <xml>
+          <ToUserName><![CDATA[${openid}]]></ToUserName>
+          <FromUserName><![CDATA[${appId}]]></FromUserName>
+          <CreateTime>${Math.floor(Date.now() / 1000)}</CreateTime>
+          <MsgType><![CDATA[news]]></MsgType>
+          <ArticleCount>1</ArticleCount>
+          <Articles>
+            <item>
+              <Title><![CDATA[${title}]]></Title>
+              <Description><![CDATA[${description}]]></Description>
+              <PicUrl><![CDATA[${picUrl}]]></PicUrl>
+              <Url><![CDATA[]]></Url>  <!-- 空字符串，点击无跳转 -->
+            </item>
+          </Articles>
+        </xml>`.trim();
 
       // 加密回复
       const encryptedReply = aesEncrypt(
