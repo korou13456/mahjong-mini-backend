@@ -3,6 +3,7 @@ const {
   buildSignature,
   buildMsgSignature,
   aesDecrypt,
+  aesEncrypt,
 } = require("../../utils/wechatVerify");
 const axios = require("axios");
 const xml2js = require("xml2js");
@@ -135,7 +136,6 @@ async function wechatReceive(req, res) {
       trim: true,
     });
 
-    // 事件消息处理
     const msg = parsed.xml || {};
     if (msg.MsgType === "event" && msg.Event === "subscribe") {
       const openid = msg.FromUserName;
@@ -188,8 +188,46 @@ async function wechatReceive(req, res) {
       } catch (err) {
         console.error("获取用户信息失败:", err);
       }
+
+      // 关注回复图文消息
+      const title = "桌友们都在等你～";
+      const description = `关注成功啦！🎲
+以后拼桌成功、好友邀局、活动更新，我们都会第一时间告诉你。
+别错过每一局好玩的人！`;
+      const picUrl = "https://yourdomain.com/path/to/card-image.jpg"; // 你的小卡片图片地址
+      const url = "https://yourdomain.com/mini-program-launch-link"; // 点击跳转链接
+
+      const replyXml = `
+      <xml>
+        <ToUserName><![CDATA[${openid}]]></ToUserName>
+        <FromUserName><![CDATA[${appId}]]></FromUserName>
+        <CreateTime>${Math.floor(Date.now() / 1000)}</CreateTime>
+        <MsgType><![CDATA[news]]></MsgType>
+        <ArticleCount>1</ArticleCount>
+        <Articles>
+          <item>
+            <Title><![CDATA[${title}]]></Title>
+            <Description><![CDATA[${description}]]></Description>
+            <PicUrl><![CDATA[${picUrl}]]></PicUrl>
+            <Url><![CDATA[${url}]]></Url>
+          </item>
+        </Articles>
+      </xml>`.trim();
+
+      // 加密回复
+      const encryptedReply = aesEncrypt(
+        replyXml,
+        token,
+        encodingAesKey,
+        appId,
+        timestamp,
+        nonce
+      );
+
+      return res.status(200).send(encryptedReply);
     }
 
+    // 其他消息处理
     return res.status(200).send("success");
   } catch (err) {
     console.error("[WeChat OA] Error handling message:", err);

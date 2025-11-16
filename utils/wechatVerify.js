@@ -41,8 +41,60 @@ function aesDecrypt(encryptBase64, encodingAesKey) {
   return { msg: msg.toString("utf8"), appId };
 }
 
+function aesEncrypt(
+  replyMessage,
+  token,
+  encodingAesKey,
+  appId,
+  timestamp,
+  nonce
+) {
+  const AES_KEY = Buffer.from(encodingAesKey + "=", "base64");
+  const random16 = crypto.randomBytes(16);
+  const msg = Buffer.from(replyMessage);
+  const msgLength = Buffer.alloc(4);
+  msgLength.writeUInt32BE(msg.length, 0);
+  const appIdBuffer = Buffer.from(appId);
+
+  const bufMsg = Buffer.concat([random16, msgLength, msg, appIdBuffer]);
+  const cipher = crypto.createCipheriv(
+    "aes-256-cbc",
+    AES_KEY,
+    AES_KEY.slice(0, 16)
+  );
+  cipher.setAutoPadding(false);
+
+  const blockSize = 32;
+  const padAmount = blockSize - (bufMsg.length % blockSize);
+  const pad = Buffer.alloc(padAmount, padAmount);
+
+  const finalBuf = Buffer.concat([bufMsg, pad]);
+
+  const encrypted = Buffer.concat([cipher.update(finalBuf), cipher.final()]);
+
+  // 生成签名
+  const sha1 = crypto.createHash("sha1");
+  const rawList = [
+    token,
+    timestamp,
+    nonce,
+    encrypted.toString("base64"),
+  ].sort();
+  sha1.update(rawList.join(""));
+  const signature = sha1.digest("hex");
+
+  // 返回加密消息XML
+  return `<xml>
+    <Encrypt><![CDATA[${encrypted.toString("base64")}]]></Encrypt>
+    <MsgSignature><![CDATA[${signature}]]></MsgSignature>
+    <TimeStamp>${timestamp}</TimeStamp>
+    <Nonce><![CDATA[${nonce}]]></Nonce>
+  </xml>`;
+}
+
 module.exports = {
   buildSignature,
   buildMsgSignature,
   aesDecrypt,
+  aesEncrypt,
 };
