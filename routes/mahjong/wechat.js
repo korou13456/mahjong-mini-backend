@@ -29,7 +29,6 @@ async function readRawText(req) {
  * 微信服务号服务器配置验证（GET）
  */
 async function wechatVerify(req, res) {
-  console.log("服务号get");
   const { signature, timestamp, nonce, echostr } = req.query || {};
   const token = process.env.WECHAT_TOKEN || "";
   if (!token) {
@@ -98,14 +97,11 @@ async function wechatReceive(req, res) {
     const appId = process.env.WX_APP_ID || "";
 
     const raw = await readRawText(req);
-    console.log("[WeChat OA] Incoming query:", req.query);
-    console.log("[WeChat OA] Raw body:", raw);
 
     const encryptMatch =
       raw.match(/<Encrypt><!\[CDATA\[(.*)\]\]><\/Encrypt>/) ||
       raw.match(/<Encrypt>([^<]+)<\/Encrypt>/);
     if (!encryptMatch) {
-      console.log("[WeChat OA] Plaintext mode message received");
       return res.status(200).send("success");
     }
 
@@ -128,8 +124,6 @@ async function wechatReceive(req, res) {
       return res.status(401).send("AppId 不匹配");
     }
 
-    console.log("[WeChat OA] Decrypted XML:", decryptedXml);
-
     // 解析 XML
     const parsed = await xml2js.parseStringPromise(decryptedXml, {
       explicitArray: false,
@@ -139,13 +133,10 @@ async function wechatReceive(req, res) {
     const msg = parsed.xml || {};
     if (msg.MsgType === "event" && msg.Event === "subscribe") {
       const openid = msg.FromUserName;
-      console.log("用户关注，openid:", openid);
 
       try {
         const accessToken = await getAccessToken();
         const userInfo = await getUserInfo(accessToken, openid);
-        console.log("获取到的用户信息:", userInfo);
-        console.log("用户unionid:", userInfo.unionid || "无unionid");
 
         // 根据 unionid 处理用户与服务号 openid 的绑定
         const unionid = userInfo.unionid;
@@ -189,30 +180,40 @@ async function wechatReceive(req, res) {
         console.error("获取用户信息失败:", err);
       }
 
-      // 关注回复图文消息
-      const title = "桌友们都在等你～";
-      const description = `关注成功啦！🎲
-         以后拼桌成功、好友邀局、活动更新，我们都会第一时间告诉你。
-         别错过每一局好玩的人！`;
-      const picUrl =
-        "https://majhongapp.cn/uploads/1763274689590-13b5a5b2b8f57.png"; // 你的小卡片图片地址
+      // // 关注回复图文消息
+      // const title = "桌友们都在等你～";
+      // const description = `关注成功啦！🎲
+      //    以后拼桌成功、好友邀局、活动更新，我们都会第一时间告诉你。
+      //    别错过每一局好玩的人！`;
+      // const picUrl =
+      //   "https://majhongapp.cn/uploads/1763274689590-13b5a5b2b8f57.png"; // 你的小卡片图片地址
+
+      // const replyXml = `
+      //   <xml>
+      //     <ToUserName><![CDATA[${openid}]]></ToUserName>
+      //     <FromUserName><![CDATA[${appId}]]></FromUserName>
+      //     <CreateTime>${Math.floor(Date.now() / 1000)}</CreateTime>
+      //     <MsgType><![CDATA[news]]></MsgType>
+      //     <ArticleCount>1</ArticleCount>
+      //     <Articles>
+      //       <item>
+      //         <Title><![CDATA[${title}]]></Title>
+      //         <Description><![CDATA[${description}]]></Description>
+      //         <PicUrl><![CDATA[${picUrl}]]></PicUrl>
+      //         <Url><![CDATA[]]></Url>  <!-- 空字符串，点击无跳转 -->
+      //       </item>
+      //     </Articles>
+      //   </xml>`.trim();
 
       const replyXml = `
-        <xml>
-          <ToUserName><![CDATA[${openid}]]></ToUserName>
-          <FromUserName><![CDATA[${appId}]]></FromUserName>
-          <CreateTime>${Math.floor(Date.now() / 1000)}</CreateTime>
-          <MsgType><![CDATA[news]]></MsgType>
-          <ArticleCount>1</ArticleCount>
-          <Articles>
-            <item>
-              <Title><![CDATA[${title}]]></Title>
-              <Description><![CDATA[${description}]]></Description>
-              <PicUrl><![CDATA[${picUrl}]]></PicUrl>
-              <Url><![CDATA[]]></Url>  <!-- 空字符串，点击无跳转 -->
-            </item>
-          </Articles>
-        </xml>`.trim();
+      <xml>
+        <ToUserName><![CDATA[${msg.FromUserName}]]></ToUserName>
+        <FromUserName><![CDATA[${msg.ToUserName}]]></FromUserName>
+        <CreateTime>${Math.floor(Date.now() / 1000)}</CreateTime>
+        <MsgType><![CDATA[text]]></MsgType>
+        <Content><![CDATA[关注成功，欢迎桌友们！]]></Content>
+      </xml>
+    `.trim();
 
       // 加密回复
       const encryptedReply = aesEncrypt(
