@@ -120,6 +120,30 @@ async function handleMatchSuccess(conn, tableId) {
     : null;
 
   // 推送给商家
+  console.log({
+    tableId: encodeRoomId(tableId),
+    roomTitle: title,
+    storeName: storeDetail.store_name,
+    storeAddress: storeDetail.address_detail,
+    storePhone: storeDetail.manager_phone,
+  });
+  console.log("tableId", tableId, tableId.length);
+  console.log("title", title, title.length);
+  console.log(
+    "storeDetail.store_name",
+    storeDetail.store_name,
+    storeDetail.store_name.length
+  );
+  console.log(
+    "storeDetail.address_detail",
+    storeDetail.address_detail,
+    storeDetail.address_detail.length
+  );
+  console.log(
+    "storeDetail.manager_phone",
+    storeDetail.manager_phone,
+    storeDetail.manager_phone.length
+  );
   await pushMessage(
     "TABLE_SUCCES_USER",
     admin.service_openid,
@@ -144,6 +168,34 @@ async function handleMatchSuccess(conn, tableId) {
           pagepath: "pages/table-detail/index?id=" + tableId,
         }
       : null;
+    console.log({
+      tableId: encodeRoomId(tableId),
+      roomTitle: title,
+      storeName: storeDetail.store_name,
+      storeAddress: storeDetail.address_detail,
+      storePhone: storeDetail.manager_phone,
+    });
+    console.log(
+      "encodeRoomId(tableId)",
+      encodeRoomId(tableId),
+      encodeRoomId(tableId).length
+    );
+    console.log("title", title, title.length);
+    console.log(
+      "storeDetail.store_name",
+      storeDetail.store_name,
+      storeDetail.store_name.length
+    );
+    console.log(
+      "storeDetail.address_detail",
+      storeDetail.address_detail,
+      storeDetail.address_detail.length
+    );
+    console.log(
+      "storeDetail.manager_phone",
+      storeDetail.manager_phone,
+      storeDetail.manager_phone.length
+    );
 
     await pushMessage(
       "TABLE_SUCCES_USER",
