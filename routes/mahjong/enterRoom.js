@@ -105,11 +105,7 @@ async function handleMatchSuccess(conn, tableId) {
     config,
     "mahjongType",
     table.mahjong_type
-  )}·${formatDateToMDHM(table.start_time)}·${getConfigValue(
-    config,
-    "duration",
-    table.duration
-  )}`;
+  )}·${formatDateToMDHM(table.start_time)}`;
 
   const miniAppId = process.env.WX_MINI_APP_ID || "";
   const adminMiniProgram = miniAppId
