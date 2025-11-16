@@ -181,10 +181,12 @@ async function wechatReceive(req, res) {
       }
 
       // 关注回复图文消息
-      const title = "桌友们都在等你～";
-      const description = `关注成功啦！🎲
-         以后拼桌成功、好友邀局、活动更新，我们都会第一时间告诉你。
-         别错过每一局好玩的人！`;
+      const title = "关注成功啦！🎲";
+      const description =
+        "以后拼桌成功、好友邀局、活动更新，我们都会第一时间告诉你。\n" +
+        "别错过每一局好玩的人！\n" +
+        "点击下方按钮\n" +
+        "打开小程序开始拼桌";
 
       const replyXml = `
         <xml>
@@ -201,16 +203,6 @@ async function wechatReceive(req, res) {
             </item>
           </Articles>
         </xml>`.trim();
-
-      //   const replyXml = `
-      //   <xml>
-      //     <ToUserName><![CDATA[${msg.FromUserName}]]></ToUserName>
-      //     <FromUserName><![CDATA[${msg.ToUserName}]]></FromUserName>
-      //     <CreateTime>${Math.floor(Date.now() / 1000)}</CreateTime>
-      //     <MsgType><![CDATA[text]]></MsgType>
-      //     <Content><![CDATA[关注成功，欢迎桌友们！]]></Content>
-      //   </xml>
-      // `.trim();
 
       // 加密回复
       const encryptedReply = aesEncrypt(

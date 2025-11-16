@@ -11,8 +11,6 @@ async function getAccessToken() {
   const now = Date.now();
   if (cachedToken && now < tokenExpireTime) return cachedToken;
 
-  console.log(APP_ID, "!=====>APP_ID");
-  console.log(APP_SECRET, "!=====>>APP_SECRET");
   const res = await axios.get("https://api.weixin.qq.com/cgi-bin/token", {
     params: {
       grant_type: "client_credential",
