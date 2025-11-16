@@ -17,6 +17,7 @@ const updateUserInfo = require("./updateUserInfo");
 const getTableDetail = require("./getTableDetail");
 const getUserInfoByPhone = require("./getUserInfoByPhone");
 const adminCreateRoom = require("./adminCreateRoom");
+const createMenu = require("./createMenu");
 
 const wechat = require("./wechat");
 
@@ -49,6 +50,9 @@ router.post("/update-user-info", authMiddleware, updateUserInfo);
 // 微信服务号消息接收（服务器配置/消息推送）
 router.get("/wechat", wechat.wechatVerify);
 router.post("/wechat", wechat.wechatReceive);
+// 创建自定义菜单
+router.get("/create-menu", createMenu);
+
 // 用户协议 H5 页面
 router.get("/agreement-user", (req, res) => {
   const htmlPath = path.join(__dirname, "agreement", "user.html");

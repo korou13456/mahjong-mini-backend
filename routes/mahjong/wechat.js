@@ -185,8 +185,6 @@ async function wechatReceive(req, res) {
       const description = `关注成功啦！🎲
          以后拼桌成功、好友邀局、活动更新，我们都会第一时间告诉你。
          别错过每一局好玩的人！`;
-      const picUrl =
-        "https://majhongapp.cn/uploads/1763274689590-13b5a5b2b8f57.png"; // 你的小卡片图片地址
 
       const replyXml = `
         <xml>
@@ -199,7 +197,6 @@ async function wechatReceive(req, res) {
             <item>
               <Title><![CDATA[${title}]]></Title>
               <Description><![CDATA[${description}]]></Description>
-              <PicUrl><![CDATA[${picUrl}]]></PicUrl>
               <Url><![CDATA[]]></Url>  <!-- 空字符串，点击无跳转 -->
             </item>
           </Articles>
