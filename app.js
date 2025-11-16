@@ -8,6 +8,9 @@ const {
   buildMsgSignature,
   aesDecrypt,
 } = require("./utils/wechatVerify");
+// 统一错误处理中间件
+const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
+
 require("dotenv").config({
   path: path.resolve(
     process.cwd(),
@@ -65,17 +68,10 @@ app.get("/test", (req, res) => {
 });
 
 // 404处理
-app.use((req, res) => {
-  res.status(404).json({ code: 404, message: "资源未找到" });
-});
+app.use(notFoundHandler);
 
 // 全局错误处理
-app.use((err, req, res, next) => {
-  console.error("Unhandled Error:", err);
-  res
-    .status(500)
-    .json({ code: 500, message: "服务器错误", error: err.message });
-});
+app.use(errorHandler);
 
 // 启动服务
 app.listen(port, () => {
