@@ -14,6 +14,10 @@ const getUserRoomStatus = require("./getUserRoomStatus");
 const login = require("./login");
 const getUserInformation = require("./getUserInformation");
 const updateUserInfo = require("./updateUserInfo");
+const getTableDetail = require("./getTableDetail");
+const getUserInfoByPhone = require("./getUserInfoByPhone");
+const adminCreateRoom = require("./adminCreateRoom");
+
 const wechat = require("./wechat");
 
 // 获取麻将房间列表
@@ -28,10 +32,16 @@ router.get("/get-config-list", getConfigList);
 router.get("/get-store-list", getStoreList);
 // 创建房间
 router.post("/create-room", authMiddleware, createRoom);
+// 管理员创建房间
+router.post("/admin-create-room", authMiddleware, adminCreateRoom);
 // 获取用户当前状态
 router.get("/get-user-room-status", authMiddleware, getUserRoomStatus);
 // 获取用户信息
 router.get("/get-user-information", authMiddleware, getUserInformation);
+// 获取房间信息
+router.get("/get-table-detail", getTableDetail);
+// 根据手机号获取用户信息
+router.get("/get-user-info-by-phone", getUserInfoByPhone);
 // 登录接口
 router.post("/login", login);
 // 更新用户信息接口

@@ -12,3 +12,4 @@ dir.txt~brew
 # 忽略上传的文件，但保留默认头像
 uploads/*
 !uploads/gender*.jpg
+!uploads/customization*.jpg

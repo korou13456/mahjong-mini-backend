@@ -13,7 +13,12 @@ const getUserInformation = async (req, res) => {
     }
 
     const [rows] = await connection.execute(
-      "SELECT id, user_id, nickname, avatar_url, gender, phone_num, total_game_cnt, total_game_create, location FROM users WHERE user_id = ?",
+      `SELECT 
+          id, user_id, nickname, avatar_url, gender, phone_num,
+          total_game_cnt, total_game_create, location,
+          is_subscribed, user_type
+       FROM users
+       WHERE user_id = ?`,
       [userId]
     );
 
@@ -36,6 +41,8 @@ const getUserInformation = async (req, res) => {
         totalGameCnt: user.total_game_cnt,
         totalGameCreate: user.total_game_create,
         location: user.location,
+        isSubscribed: user.is_subscribed,
+        user_type: user.user_type,
       },
     });
   } catch (error) {

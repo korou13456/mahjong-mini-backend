@@ -1,6 +1,11 @@
 const jwt = require("jsonwebtoken");
 const db = require("../../config/database");
-const { parseParticipants } = require("../../utils/roomHelpers");
+const {
+  parseParticipants,
+  fetchUserMap,
+  fetchStoreMap,
+  encodeRoomId,
+} = require("../../utils/roomHelpers");
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // 提取有效用户ID（number 且 > 0）
@@ -9,22 +14,6 @@ const extractUserIds = (participants) => {
     .map((id) => Number(id))
     .filter((id) => !isNaN(id) && id > 0);
 };
-
-// === 新增：生成基于当天日期的盐值（如 20251106） ===
-function getDailySalt() {
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, "0");
-  const dd = String(today.getDate()).padStart(2, "0");
-  return Number(`${yyyy}${mm}${dd}`);
-}
-
-// === 新增：生成混淆后的 showId（四位版本）===
-function encodeRoomId(id) {
-  const salt = getDailySalt();
-  const mixed = (id * 73 + salt) % 10000; // 改为模10000，得到0-9999
-  return String(mixed).padStart(4, "0"); // 改为填充到4位
-}
 
 const getTableList = async (req, res) => {
   const connection = await db.getConnection();
@@ -116,51 +105,15 @@ const getTableList = async (req, res) => {
     });
 
     // 查询用户信息
-    const userMap = {};
+    let userMap = {};
     if (userIds.size > 0) {
-      const userIdArray = Array.from(userIds);
-      const placeholders = userIdArray.map(() => "?").join(",");
-      const userSql = `
-        SELECT 
-          id,
-          user_id as userId,
-          wxid,
-          nickname,
-          avatar_url as avatarUrl,
-          gender,
-          phone_num as phoneNum
-        FROM users
-        WHERE user_id IN (${placeholders})
-      `;
-      const [userResults] = await connection.execute(userSql, userIdArray);
-      userResults.forEach((u) => (userMap[u.userId] = u));
+      userMap = await fetchUserMap(connection, Array.from(userIds));
     }
 
     // 查询门店信息
-    const storeMap = {};
+    let storeMap = {};
     if (storeIds.size > 0) {
-      const storeIdArray = Array.from(storeIds);
-      const placeholders = storeIdArray.map(() => "?").join(",");
-      const storeSql = `
-        SELECT 
-          id as storeId,
-          store_name as storeName,
-          store_image as storeImage,
-          address_detail as addressDetail,
-          province,
-          city,
-          district,
-          latitude,
-          longitude,
-          manager_name as managerName,
-          manager_phone as managerPhone,
-          service_wxid as serviceWxid,
-          status as storeStatus
-        FROM stores
-        WHERE id IN (${placeholders})
-      `;
-      const [storeResults] = await connection.execute(storeSql, storeIdArray);
-      storeResults.forEach((s) => (storeMap[s.storeId] = s));
+      storeMap = await fetchStoreMap(connection, Array.from(storeIds));
     }
 
     // 组装活跃房间列表
@@ -248,57 +201,18 @@ const getTableList = async (req, res) => {
         });
 
         // 查询游戏房间用户信息
-        const gameUserMap = {};
+        let gameUserMap = {};
         if (gameUserIds.size > 0) {
-          const gameUserIdArray = Array.from(gameUserIds);
-          const userPlaceholders = gameUserIdArray.map(() => "?").join(",");
-          const userSql = `
-            SELECT 
-              id,
-              user_id as userId,
-              wxid,
-              nickname,
-              avatar_url as avatarUrl,
-              gender,
-              phone_num as phoneNum
-            FROM users
-            WHERE user_id IN (${userPlaceholders})
-          `;
-          const [userResults] = await connection.execute(
-            userSql,
-            gameUserIdArray
-          );
-          userResults.forEach((u) => (gameUserMap[u.userId] = u));
+          gameUserMap = await fetchUserMap(connection, Array.from(gameUserIds));
         }
 
         // 查询游戏房间门店信息
-        const gameStoreMap = {};
+        let gameStoreMap = {};
         if (gameStoreIds.size > 0) {
-          const gameStoreIdArray = Array.from(gameStoreIds);
-          const storePlaceholders = gameStoreIdArray.map(() => "?").join(",");
-          const storeSql = `
-            SELECT 
-              id as storeId,
-              store_name as storeName,
-              store_image as storeImage,
-              address_detail as addressDetail,
-              province,
-              city,
-              district,
-              latitude,
-              longitude,
-              manager_name as managerName,
-              manager_phone as managerPhone,
-              service_wxid as serviceWxid,
-              status as storeStatus
-            FROM stores
-            WHERE id IN (${storePlaceholders})
-          `;
-          const [storeResults] = await connection.execute(
-            storeSql,
-            gameStoreIdArray
+          gameStoreMap = await fetchStoreMap(
+            connection,
+            Array.from(gameStoreIds)
           );
-          storeResults.forEach((s) => (gameStoreMap[s.storeId] = s));
         }
 
         // 组装 gameList
