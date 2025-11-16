@@ -190,8 +190,8 @@ async function wechatReceive(req, res) {
 
       const replyXml = `
         <xml>
-          <ToUserName><![CDATA[${openid}]]></ToUserName>
-          <FromUserName><![CDATA[${appId}]]></FromUserName>
+          <ToUserName><![CDATA[${msg.FromUserName}]]></ToUserName>
+          <FromUserName><![CDATA[${msg.ToUserName}]]></FromUserName>
           <CreateTime>${Math.floor(Date.now() / 1000)}</CreateTime>
           <MsgType><![CDATA[news]]></MsgType>
           <ArticleCount>1</ArticleCount>
