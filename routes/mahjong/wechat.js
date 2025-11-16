@@ -8,6 +8,7 @@ const {
 const axios = require("axios");
 const xml2js = require("xml2js");
 const db = require("../../config/database");
+const tokenManager = require("../../utils/wechatTokenManager");
 
 /**
  * 读取原始文本请求体（兼容未经过 body-parser 的 text/xml）
@@ -41,24 +42,8 @@ async function wechatVerify(req, res) {
   return res.status(401).send("signature 校验失败");
 }
 
-let cachedAccessToken = null;
-let tokenExpireTime = 0;
-
 async function getAccessToken() {
-  const now = Date.now();
-  if (cachedAccessToken && now < tokenExpireTime) {
-    return cachedAccessToken;
-  }
-  const appId = process.env.WX_APP_ID;
-  const appSecret = process.env.WX_APP_SECRET;
-  const url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${appId}&secret=${appSecret}`;
-  const res = await axios.get(url);
-  if (res.data.access_token) {
-    cachedAccessToken = res.data.access_token;
-    tokenExpireTime = now + (res.data.expires_in - 300) * 1000; // 提前5分钟刷新
-    return cachedAccessToken;
-  }
-  throw new Error("获取access_token失败：" + JSON.stringify(res.data));
+  return await tokenManager.getAccessToken();
 }
 
 async function getUserInfo(accessToken, openid) {

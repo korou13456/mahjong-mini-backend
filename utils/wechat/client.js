@@ -1,30 +1,9 @@
 // utils/wechat/client.js
 const axios = require("axios");
-
-const APP_ID = process.env.WX_APP_ID;
-const APP_SECRET = process.env.WX_APP_SECRET;
-
-let cachedToken = "";
-let tokenExpireTime = 0;
+const tokenManager = require("../wechatTokenManager");
 
 async function getAccessToken() {
-  const now = Date.now();
-  if (cachedToken && now < tokenExpireTime) return cachedToken;
-
-  const res = await axios.get("https://api.weixin.qq.com/cgi-bin/token", {
-    params: {
-      grant_type: "client_credential",
-      appid: APP_ID,
-      secret: APP_SECRET,
-    },
-  });
-  if (!res.data.access_token) {
-    throw new Error("获取微信 access_token 失败：" + JSON.stringify(res.data));
-  }
-
-  cachedToken = res.data.access_token;
-  tokenExpireTime = now + (res.data.expires_in - 60) * 1000;
-  return cachedToken;
+  return await tokenManager.getAccessToken();
 }
 
 async function sendTemplateMessage({

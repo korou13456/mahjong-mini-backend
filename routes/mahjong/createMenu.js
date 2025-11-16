@@ -1,28 +1,12 @@
 // routes/mahjong/wechat/createMenu.js
 const axios = require("axios");
-
-// 你的公众号 APPID 和 APPSECRET
-const APPID = process.env.WX_APP_ID;
-const APPSECRET = process.env.WX_APP_SECRET;
+const tokenManager = require("../../utils/wechatTokenManager");
 
 // 创建自定义菜单的方法
 async function createMenu(req, res) {
   try {
-    console.log(APPID, APPSECRET, "!====>>");
-    // 1. 获取 access_token
-    const tokenRes = await axios.get(
-      `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${APPID}&secret=${APPSECRET}`
-    );
-
-    if (!tokenRes.data.access_token) {
-      return res.json({
-        code: -1,
-        msg: "获取 access_token 失败",
-        data: tokenRes.data,
-      });
-    }
-
-    const accessToken = tokenRes.data.access_token;
+    // 1. 获取 access_token（使用缓存机制）
+    const accessToken = await tokenManager.getAccessToken();
 
     // 2. 自定义菜单数据
     const menuData = {
