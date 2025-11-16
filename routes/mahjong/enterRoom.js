@@ -111,7 +111,7 @@ async function handleMatchSuccess(conn, tableId) {
   const adminMiniProgram = miniAppId
     ? {
         appid: miniAppId,
-        pagepath: "pages/admin-table-detail/index?id=" + tableId,
+        pagepath: "/pages/admin/admin-table-detail/index?id=" + tableId,
       }
     : null;
 
