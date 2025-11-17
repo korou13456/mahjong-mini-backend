@@ -16,7 +16,7 @@ async function createMenu(req, res) {
           name: "进入小程序",
           url: "https://mp.weixin.qq.com",
           appid: process.env.WECHAT_APPID, // 你的小程序 AppID
-          pagepath: "pages/index/index",
+          pagepath: "pages/home-page/index",
         },
       ],
     };
