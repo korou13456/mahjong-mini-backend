@@ -171,7 +171,8 @@ async function wechatReceive(req, res) {
 以后拼桌成功、好友邀局、活动更新，我们都会第一时间告诉你。
 别错过每一局好玩的人！
 
-点击下方菜单打开小程序开始拼桌`;
+点击下方按钮
+打开小程序开始拼桌`;
 
       const replyXml = `
         <xml>
