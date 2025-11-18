@@ -87,7 +87,7 @@ const getTableList = async (req, res) => {
       WHERE status = 0
         AND TIMESTAMPDIFF(HOUR, create_time, NOW()) <= 2
         AND start_time >= NOW()
-      ORDER BY create_time DESC
+      ORDER BY create_time ASC
     `;
     const [results] = await connection.execute(selectSql);
 
