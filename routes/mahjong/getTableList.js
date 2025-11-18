@@ -36,10 +36,10 @@ const getTableList = async (req, res) => {
 
     // 更新过期房间状态
     const findExpiredSql = `
-      SELECT id, participants 
+      SELECT id, participants
       FROM table_list 
       WHERE status = 0 
-        AND (start_time < NOW() OR TIMESTAMPDIFF(HOUR, create_time, NOW()) > 2)
+        AND (start_time < NOW() OR TIMESTAMPDIFF(MINUTE, create_time, NOW()) > 120)
     `;
     const [expiredRooms] = await connection.execute(findExpiredSql);
 
