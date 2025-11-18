@@ -15,6 +15,8 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: Number(process.env.DB_CONN_LIMIT || 10),
   queueLimit: Number(process.env.DB_QUEUE_LIMIT || 0),
+  charset: "utf8mb4",
+  collation: "utf8mb4_unicode_ci",
 });
 
 const nodeEnv = process.env.NODE_ENV || "development";
