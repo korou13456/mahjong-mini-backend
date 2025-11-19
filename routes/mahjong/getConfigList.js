@@ -11,7 +11,8 @@ const getConfigList = async (req, res) => {
         config_value as configValue
       FROM configs 
       WHERE config_key IN (1, 2, 3, 4, 5, 6, 7, 8)
-      ORDER BY config_key, config_id
+      ORDER BY config_key, 
+               CASE WHEN config_key = 8 THEN config_id * -1 ELSE config_id END
     `;
 
     const [results] = await db.execute(sql);

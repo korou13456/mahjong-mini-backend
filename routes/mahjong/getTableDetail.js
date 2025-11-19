@@ -93,6 +93,9 @@ const getTableDetail = async (req, res) => {
     }
 
     const showId = encodeRoomId(room.id);
+    
+    // 判断当前用户是否在房间中
+    const isCurrentRoom = currentUserId && participantIds.includes(currentUserId);
 
     // 返回结果
     res.json({
@@ -101,6 +104,7 @@ const getTableDetail = async (req, res) => {
         ...room,
         storeInfo,
         showId,
+        isCurrentRoom,
       },
     });
   } catch (error) {
