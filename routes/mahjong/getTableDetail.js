@@ -46,6 +46,8 @@ const getTableDetail = async (req, res) => {
         duration,
         mahjong_type as mahjongType,
         gender_pref as genderPref,
+        smoking_pref as smokingPref,
+        req_num as reqNum,
         status,
         create_time as createTime,
         update_time as updateTime

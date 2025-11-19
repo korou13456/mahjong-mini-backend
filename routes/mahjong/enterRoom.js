@@ -179,7 +179,23 @@ const enterRoom = async (req, res) => {
       await leaveRoom(connection, currentTableId, userId);
     }
 
-    const joinResult = await joinRoom(connection, tableId, userId, 4);
+    // 查询房间的最大人数
+    const tableInfo = await queryOne(
+      connection,
+      `SELECT req_num FROM table_list WHERE id = ? AND status = 0`,
+      [tableId]
+    );
+
+    if (!tableInfo) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message: "目标房间不存在或已失效",
+      });
+    }
+
+    const maxParticipants = tableInfo.req_num || 4; // 默认4人
+    const joinResult = await joinRoom(connection, tableId, userId, maxParticipants);
 
     if (joinResult.reason) {
       await connection.rollback();
@@ -189,13 +205,13 @@ const enterRoom = async (req, res) => {
           {
             TABLE_NOT_FOUND: "目标房间不存在",
             ALREADY_IN_ROOM: "您已经在该房间中",
-            ROOM_FULL: "目标房间已满员（最多4人）",
+            ROOM_FULL: `目标房间已满员（最多${maxParticipants}人）`,
           }[joinResult.reason] || "加入失败",
       });
     }
 
     // 满员 → 成局
-    if (joinResult.participants_num >= 4) {
+    if (joinResult.participants_num >= maxParticipants) {
       await handleMatchSuccess(connection, tableId);
     }
 

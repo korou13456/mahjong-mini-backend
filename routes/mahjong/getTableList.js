@@ -82,6 +82,7 @@ const getTableList = async (req, res) => {
         mahjong_type as mahjongType,
         gender_pref as genderPref,
         smoking_pref as smokingPref,
+        req_num as reqNum,
         status,
         create_time as createTime
       FROM table_list 
@@ -183,6 +184,7 @@ const getTableList = async (req, res) => {
              mahjong_type as mahjongType,
              gender_pref as genderPref,
              smoking_pref as smokingPref,
+             req_num as reqNum,
              status,
              create_time as createTime
            FROM table_list WHERE id IN (${placeholders})`,

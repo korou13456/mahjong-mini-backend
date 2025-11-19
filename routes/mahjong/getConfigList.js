@@ -10,7 +10,7 @@ const getConfigList = async (req, res) => {
         config_id as configId, 
         config_value as configValue
       FROM configs 
-      WHERE config_key IN (1, 2, 3, 4, 5, 6, 7)
+      WHERE config_key IN (1, 2, 3, 4, 5, 6, 7, 8)
       ORDER BY config_key, config_id
     `;
 
@@ -25,6 +25,7 @@ const getConfigList = async (req, res) => {
       scoringTier: [], // 5: 计分方式
       requirements: [], // 6: 需求
       smokingPref: [], // 禁烟选项
+      reqNum: [], // 需求人数
     };
 
     results.forEach((item) => {
@@ -67,6 +68,12 @@ const getConfigList = async (req, res) => {
           break;
         case 7:
           configs.smokingPref.push({
+            id: item.configId,
+            value: item.configValue,
+          });
+          break;
+        case 8:
+          configs.reqNum.push({
             id: item.configId,
             value: item.configValue,
           });
