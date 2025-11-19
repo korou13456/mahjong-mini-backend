@@ -17,7 +17,7 @@ const adminCreateRoom = async (req, res) => {
       mahjong_type = 0,
       gender_pref = 0,
       participants, // [1,2,3]
-      smoking_pref,
+      smoking_pref = 1,
     } = req.body;
 
     // 基础校验

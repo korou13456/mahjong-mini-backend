@@ -19,7 +19,7 @@ const createRoom = async (req, res) => {
       mahjong_type,
       gender_pref = 0,
       currentTableId,
-      smoking_pref,
+      smoking_pref = 1,
     } = req.body;
 
     if (!start_time || !store_id) {
