@@ -17,6 +17,7 @@ const adminCreateRoom = async (req, res) => {
       mahjong_type = 0,
       gender_pref = 0,
       participants, // [1,2,3]
+      smoking_pref,
     } = req.body;
 
     // 基础校验
@@ -43,8 +44,8 @@ const adminCreateRoom = async (req, res) => {
     // 创建房间
     const [result] = await connection.execute(
       `INSERT INTO table_list 
-       (host_id, pay_type, scoring_tier, special_notes, start_time, store_id, duration, mahjong_type, gender_pref, participants) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (host_id, pay_type, scoring_tier, special_notes, start_time, store_id, duration, mahjong_type, gender_pref, smoking_pref, participants) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         host_id,
         pay_type,
@@ -55,6 +56,7 @@ const adminCreateRoom = async (req, res) => {
         duration,
         mahjong_type,
         gender_pref,
+        smoking_pref,
         JSON.stringify(participants),
       ]
     );
