@@ -3,7 +3,6 @@ const db = require("../../config/database");
 
 const adminCreateRoom = async (req, res) => {
   const connection = await db.getConnection();
-  console.log(12312312);
   try {
     await connection.beginTransaction();
 

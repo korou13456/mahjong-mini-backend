@@ -86,12 +86,28 @@ async function handleMatchSuccess(conn, tableId) {
     [table.store_id]
   );
 
-  // 查管理员用户
-  const admin = await queryOne(
-    conn,
-    `SELECT service_openid FROM users WHERE user_id = ?`,
-    [storeDetail.user_id]
-  );
+  // 解析管理员用户ID数组
+  let adminUserIds = [];
+  try {
+    adminUserIds = Array.isArray(storeDetail.user_id)
+      ? storeDetail.user_id
+      : JSON.parse(storeDetail.user_id || "[]");
+  } catch (e) {
+    console.warn("解析store user_id失败:", e.message);
+    adminUserIds = [];
+  }
+
+  // 查询所有管理员的service_openid
+  let adminOpenids = [];
+  if (adminUserIds.length > 0) {
+    const placeholders = adminUserIds.map(() => "?").join(",");
+    const [adminRows] = await conn.query(
+      `SELECT service_openid FROM users WHERE user_id IN (${placeholders}) AND service_openid IS NOT NULL`,
+      adminUserIds
+    );
+    console.log(adminRows, "!====>>adminRows");
+    adminOpenids = adminRows.map((row) => row.service_openid).filter(Boolean);
+  }
 
   // 查玩家
   const [userRows] = await conn.query(
@@ -115,21 +131,22 @@ async function handleMatchSuccess(conn, tableId) {
       }
     : null;
 
-  // 推送给商家
-
-  await pushMessage(
-    "TABLE_SUCCES_USER",
-    admin.service_openid,
-    {
-      tableId: encodeRoomId(tableId),
-      roomTitle: title,
-      storeName: storeDetail.store_name,
-      storeAddress: storeDetail.address_detail,
-      storePhone: storeDetail.manager_phone,
-    },
-    "",
-    adminMiniProgram
-  );
+  // 推送给所有管理员
+  for (const adminOpenid of adminOpenids) {
+    await pushMessage(
+      "TABLE_SUCCES_USER",
+      adminOpenid,
+      {
+        tableId: encodeRoomId(tableId),
+        roomTitle: title,
+        storeName: storeDetail.store_name,
+        storeAddress: storeDetail.address_detail,
+        storePhone: storeDetail.manager_phone,
+      },
+      "",
+      adminMiniProgram
+    );
+  }
 
   // 推送给每个玩家
   for (const user of userRows) {
@@ -195,7 +212,12 @@ const enterRoom = async (req, res) => {
     }
 
     const maxParticipants = tableInfo.req_num || 4; // 默认4人
-    const joinResult = await joinRoom(connection, tableId, userId, maxParticipants);
+    const joinResult = await joinRoom(
+      connection,
+      tableId,
+      userId,
+      maxParticipants
+    );
 
     if (joinResult.reason) {
       await connection.rollback();
