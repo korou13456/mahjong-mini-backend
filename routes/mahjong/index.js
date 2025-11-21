@@ -18,6 +18,7 @@ const getTableDetail = require("./getTableDetail");
 const getUserInfoByPhone = require("./getUserInfoByPhone");
 const adminCreateRoom = require("./adminCreateRoom");
 const createMenu = require("./createMenu");
+const eventLog = require("./eventLog");
 
 const wechat = require("./wechat");
 
@@ -52,6 +53,8 @@ router.get("/wechat", wechat.wechatVerify);
 router.post("/wechat", wechat.wechatReceive);
 // 创建自定义菜单
 router.get("/create-menu", createMenu);
+// 记录事件日志
+router.post("/event-log", eventLog);
 
 // 用户协议 H5 页面
 router.get("/agreement-user", (req, res) => {
