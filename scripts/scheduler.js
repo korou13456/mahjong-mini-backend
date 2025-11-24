@@ -1,5 +1,5 @@
 // scheduler.js - 机器人桌局管理系统
-const env = process.env.NODE_ENV || 'development';
+const env = process.env.NODE_ENV || "development";
 console.log(`当前环境: ${env}`);
 require("dotenv").config({ path: `.env.${env}` });
 const cron = require("node-cron");
@@ -20,8 +20,8 @@ const ROBOT_CONFIG = {
   createInterval: 5, // 每次创建至少间隔5分钟
 
   // 时间段
-  workStartHour: 10, // 工作开始时间 10:00
-  workEndHour: 18, // 工作结束时间 18:00
+  workStartHour: 1, // 工作开始时间 10:00
+  workEndHour: 23, // 工作结束时间 18:00
 
   // 机器人退出条件
   exitDelayMin: 10, // 最近用户加入后至少等待10分钟
