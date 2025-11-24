@@ -8,11 +8,18 @@ const {
 } = require("../../utils/roomHelpers");
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// 提取有效用户ID（number 且 > 0）
+// 提取所有有效用户ID（包括正数和负数）
 const extractUserIds = (participants) => {
   return participants
     .map((id) => Number(id))
-    .filter((id) => !isNaN(id) && id > 0);
+    .filter((id) => !isNaN(id));
+};
+
+// 分离真实用户和虚拟用户ID
+const separateUserIds = (userIds) => {
+  const realUsers = userIds.filter((id) => id > 0);
+  const virtualUsers = userIds.filter((id) => id < 0);
+  return { realUsers, virtualUsers };
 };
 
 const getTableList = async (req, res) => {
@@ -59,11 +66,27 @@ const getTableList = async (req, res) => {
 
       if (allUserIds.length > 0) {
         const uniqueUserIds = [...new Set(allUserIds)];
-        const userPlaceholders = uniqueUserIds.map(() => "?").join(",");
-        await connection.execute(
-          `UPDATE users SET status = 0, enter_room_id = NULL WHERE user_id IN (${userPlaceholders})`,
-          uniqueUserIds
-        );
+        
+        // 分离真实用户和虚拟用户
+        const { realUsers, virtualUsers } = separateUserIds(uniqueUserIds);
+        
+        // 更新真实用户状态
+        if (realUsers.length > 0) {
+          const userPlaceholders = realUsers.map(() => "?").join(",");
+          await connection.execute(
+            `UPDATE users SET status = 0, enter_room_id = NULL WHERE user_id IN (${userPlaceholders})`,
+            realUsers
+          );
+        }
+        
+        // 更新虚拟用户状态
+        if (virtualUsers.length > 0) {
+          const virtualPlaceholders = virtualUsers.map(() => "?").join(",");
+          await connection.execute(
+            `UPDATE virtual_user SET status = 0, updated_at = NOW() WHERE user_id IN (${virtualPlaceholders})`,
+            virtualUsers
+          );
+        }
       }
     }
 
@@ -106,11 +129,40 @@ const getTableList = async (req, res) => {
       if (row.storeId) storeIds.add(row.storeId);
     });
 
-    // 查询用户信息
+    // 分离真实用户和虚拟用户
+    const { realUsers, virtualUsers } = separateUserIds(Array.from(userIds));
+
+    // 查询真实用户信息
     let userMap = {};
-    if (userIds.size > 0) {
-      userMap = await fetchUserMap(connection, Array.from(userIds));
+    if (realUsers.length > 0) {
+      userMap = await fetchUserMap(connection, realUsers);
     }
+
+    // 查询虚拟用户信息
+    let virtualUserMap = {};
+    if (virtualUsers.length > 0) {
+      const placeholders = virtualUsers.map(() => "?").join(",");
+      const [virtualRows] = await connection.execute(
+        `SELECT 
+          user_id as userId,
+          nickname,
+          avatar_url as avatarUrl,
+          gender
+        FROM virtual_user
+        WHERE user_id IN (${placeholders})`,
+        virtualUsers
+      );
+      
+      virtualRows.forEach((u) => {
+        virtualUserMap[u.userId] = {
+          ...u,
+          isRobot: true, // 标记为机器人
+        };
+      });
+    }
+
+    // 合并用户信息
+    const mergedUserMap = { ...userMap, ...virtualUserMap };
 
     // 查询门店信息
     let storeMap = {};
@@ -127,7 +179,7 @@ const getTableList = async (req, res) => {
 
       row.participants = userIds
         .map((uid) => {
-          const user = userMap[uid];
+          const user = mergedUserMap[uid];
           if (!user) return null;
           return {
             ...user,
@@ -204,11 +256,40 @@ const getTableList = async (req, res) => {
           if (row.storeId) gameStoreIds.add(row.storeId);
         });
 
-        // 查询游戏房间用户信息
+        // 分离游戏房间的真实用户和虚拟用户
+        const { realUsers: gameRealUsers, virtualUsers: gameVirtualUsers } = separateUserIds(Array.from(gameUserIds));
+
+        // 查询游戏房间真实用户信息
         let gameUserMap = {};
-        if (gameUserIds.size > 0) {
-          gameUserMap = await fetchUserMap(connection, Array.from(gameUserIds));
+        if (gameRealUsers.length > 0) {
+          gameUserMap = await fetchUserMap(connection, gameRealUsers);
         }
+
+        // 查询游戏房间虚拟用户信息
+        let gameVirtualUserMap = {};
+        if (gameVirtualUsers.length > 0) {
+          const placeholders = gameVirtualUsers.map(() => "?").join(",");
+          const [gameVirtualRows] = await connection.execute(
+            `SELECT 
+              user_id as userId,
+              nickname,
+              avatar_url as avatarUrl,
+              gender
+            FROM virtual_user
+            WHERE user_id IN (${placeholders})`,
+            gameVirtualUsers
+          );
+          
+          gameVirtualRows.forEach((u) => {
+            gameVirtualUserMap[u.userId] = {
+              ...u,
+              isRobot: true, // 标记为机器人
+            };
+          });
+        }
+
+        // 合并游戏房间用户信息
+        const gameMergedUserMap = { ...gameUserMap, ...gameVirtualUserMap };
 
         // 查询游戏房间门店信息
         let gameStoreMap = {};
@@ -228,7 +309,7 @@ const getTableList = async (req, res) => {
 
           row.participants = userIds
             .map((uid) => {
-              const user = gameUserMap[uid];
+              const user = gameMergedUserMap[uid];
               if (!user) return null;
               return {
                 ...user,

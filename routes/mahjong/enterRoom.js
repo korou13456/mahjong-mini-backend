@@ -48,6 +48,51 @@ function formatDateToMDHM(dateInput) {
   return `${month}/${day} ${hours}:${minutes}`;
 }
 
+// 加入房间时清理虚拟用户
+async function cleanVirtualUsersOnJoin(conn, tableId, newUserId) {
+  // 查询房间当前参与者和需求人数
+  const table = await queryOne(
+    conn,
+    `SELECT participants, req_num FROM table_list WHERE id = ? AND status = 0`,
+    [tableId]
+  );
+
+  if (!table) return;
+
+  const participantIds = parseParticipants(table.participants);
+  const reqNum = table.req_num || 4; // 默认4人
+  
+  if (!participantIds.length) return;
+
+  // 当房间人数等于req_num时，检查是否有虚拟用户
+  if (participantIds.length === reqNum) {
+    // 识别虚拟用户（user_id < 0）
+    const robots = participantIds.filter((id) => id < 0);
+    
+    if (robots.length > 0) {
+      // 踢出去一个虚拟用户（第一个）
+      const robotToExit = robots[0];
+
+      // 使用 leaveRoom 方法处理退出逻辑（包含房主切换）
+      const { leaveRoom } = require("../../utils/roomHelpers");
+      const result = await leaveRoom(conn, tableId, robotToExit);
+
+      if (!result.changed) {
+        console.log(`机器人退出失败: ${result.reason}`);
+        return;
+      }
+
+      // 更新被踢出的机器人状态为闲置
+      await conn.query(
+        "UPDATE virtual_user SET status = 0, updated_at = NOW() WHERE user_id = ?",
+        [robotToExit]
+      );
+
+      console.log(`房间满员清理虚拟用户: 桌局ID=${tableId}, 当前人数=${participantIds.length}, 需求人数=${reqNum}, 踢出机器人ID=${robotToExit}, 新房主ID=${result.newHostId}, 剩余参与者=${(result.participants || []).length}人`);
+    }
+  }
+}
+
 // 成局逻辑抽离
 async function handleMatchSuccess(conn, tableId) {
   // 更新状态
@@ -56,28 +101,23 @@ async function handleMatchSuccess(conn, tableId) {
     [tableId]
   );
 
-  // 查询房间玩家
-  const table = await queryOne(
-    conn,
-    `SELECT participants, store_id, mahjong_type, start_time, duration FROM table_list WHERE id = ?`,
-    [tableId]
-  );
+  // 更新真实玩家状态（只更新正数ID的用户）
+  const realUsers = finalParticipants.filter((id) => id > 0);
+  if (realUsers.length > 0) {
+    await conn.query(
+      `UPDATE users SET status = 0, enter_room_id = NULL WHERE user_id IN (?)`,
+      [realUsers]
+    );
+  }
 
-  const participantIds = parseParticipants(table.participants);
-  if (!participantIds.length) return;
-
-  // 更新玩家状态
-  await conn.query(
-    `UPDATE users SET status = 0, enter_room_id = NULL WHERE user_id IN (?)`,
-    [participantIds]
-  );
-
-  // 插入 game_sessions
-  const insertValues = participantIds.map((uid) => [tableId, uid, 0]);
-  await conn.query(
-    `INSERT INTO game_sessions (table_id, user_id, status) VALUES ?`,
-    [insertValues]
-  );
+  // 插入 game_sessions（只插入真实玩家）
+  const insertValues = realUsers.map((uid) => [tableId, uid, 0]);
+  if (insertValues.length > 0) {
+    await conn.query(
+      `INSERT INTO game_sessions (table_id, user_id, status) VALUES ?`,
+      [insertValues]
+    );
+  }
 
   // 查商家
   const storeDetail = await queryOne(
@@ -109,10 +149,10 @@ async function handleMatchSuccess(conn, tableId) {
     adminOpenids = adminRows.map((row) => row.service_openid).filter(Boolean);
   }
 
-  // 查玩家
+  // 查玩家（只查询真实玩家）
   const [userRows] = await conn.query(
     `SELECT service_openid, nickname FROM users WHERE user_id IN (?)`,
-    [participantIds]
+    [realUsers]
   );
 
   // 配置
@@ -232,9 +272,23 @@ const enterRoom = async (req, res) => {
       });
     }
 
-    // 满员 → 成局
-    if (joinResult.participants_num >= maxParticipants) {
-      await handleMatchSuccess(connection, tableId);
+    // 用户加入成功后，检查是否需要清理虚拟用户
+    await cleanVirtualUsersOnJoin(connection, tableId, userId);
+
+    // 重新查询房间参与者数量（清理虚拟用户后）
+    const updatedTable = await queryOne(
+      connection,
+      `SELECT participants FROM table_list WHERE id = ? AND status = 0`,
+      [tableId]
+    );
+
+    if (updatedTable) {
+      const currentParticipants = parseParticipants(updatedTable.participants);
+      
+      // 满员 → 成局
+      if (currentParticipants.length >= maxParticipants) {
+        await handleMatchSuccess(connection, tableId);
+      }
     }
 
     await connection.commit();
