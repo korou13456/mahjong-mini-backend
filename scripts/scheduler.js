@@ -18,12 +18,12 @@ const ROBOT_CONFIG = {
   createInterval: 5, // 每次创建至少间隔5分钟
 
   // 时间段
-  workStartHour: 01, // 工作开始时间 10:00
-  workEndHour: 23, // 工作结束时间 18:00
+  workStartHour: 10, // 工作开始时间 10:00
+  workEndHour: 18, // 工作结束时间 18:00
 
   // 机器人退出条件
   exitDelayMin: 10, // 最近用户加入后至少等待10分钟
-  exitProbability: 0.4, // 退出概率 70%
+  exitProbability: 0.4, // 退出概率 40%
   exitDelaySeconds: {
     // 退出延迟时间（秒）
     min: 10,
