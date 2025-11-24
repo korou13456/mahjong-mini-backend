@@ -196,6 +196,13 @@ function getDailySalt() {
   return Number(`${yyyy}${mm}${dd}`);
 }
 
+// === 新增：分离真实用户和虚拟用户ID ===
+function separateUserIds(userIds) {
+  const realUsers = userIds.filter((id) => id > 0);
+  const virtualUsers = userIds.filter((id) => id < 0);
+  return { realUsers, virtualUsers };
+}
+
 // === 新增：生成混淆后的 showId（四位版本）===
 function encodeRoomId(id) {
   const salt = getDailySalt();
@@ -211,5 +218,6 @@ module.exports = {
   joinRoom,
   fetchUserMap,
   fetchStoreMap,
+  separateUserIds,
   encodeRoomId,
 };

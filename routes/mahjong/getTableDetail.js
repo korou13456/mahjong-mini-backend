@@ -6,6 +6,7 @@ const {
   encodeRoomId,
   fetchUserMap,
   fetchStoreMap,
+  separateUserIds,
 } = require("../../utils/roomHelpers");
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -68,15 +69,49 @@ const getTableDetail = async (req, res) => {
     const participantIds = parseParticipants(room.participants);
     room.participants = participantIds;
 
-    // 查询用户信息（参与者）
+    // 分离真实用户和虚拟用户
+    const { realUsers, virtualUsers } = separateUserIds(participantIds);
+
+    // 查询真实用户信息
     let userMap = {};
-    if (participantIds.length > 0)
-      userMap = await fetchUserMap(connection, participantIds);
+    if (realUsers.length > 0) {
+      userMap = await fetchUserMap(connection, realUsers);
+    }
+
+    // 查询虚拟用户信息
+    let virtualUserMap = {};
+    if (virtualUsers.length > 0) {
+      const placeholders = virtualUsers.map(() => "?").join(",");
+      const [virtualRows] = await connection.execute(
+        `SELECT 
+          id,
+          user_id as userId,
+          wxid,
+          nickname,
+          avatar_url as avatarUrl,
+          gender,
+          phone_num as phoneNum,
+          is_subscribed as isSubscribed
+        FROM virtual_user
+        WHERE user_id IN (${placeholders})`,
+        virtualUsers
+      );
+
+      virtualRows.forEach((u) => {
+        virtualUserMap[u.userId] = {
+          ...u,
+          isRobot: true, // 标记为机器人
+        };
+      });
+    }
+
+    // 合并用户信息
+    const mergedUserMap = { ...userMap, ...virtualUserMap };
 
     // 把参与者换成用户详细信息数组，并标记 isMe
     room.participants = participantIds
       .map((id) => {
-        const user = userMap[id];
+        const user = mergedUserMap[id];
         if (!user) return null;
         return {
           ...user,
@@ -93,9 +128,10 @@ const getTableDetail = async (req, res) => {
     }
 
     const showId = encodeRoomId(room.id);
-    
+
     // 判断当前用户是否在房间中
-    const isCurrentRoom = currentUserId && participantIds.includes(currentUserId);
+    const isCurrentRoom =
+      currentUserId && participantIds.includes(currentUserId);
 
     // 返回结果
     res.json({
