@@ -3,7 +3,7 @@ module.exports = {
   apps: [
     {
       name: 'scheduler',
-      script: './scheduler.js',
+      script: './scripts/scheduler.js',
       instances: 1,
       autorestart: true,
       watch: false,
@@ -11,9 +11,9 @@ module.exports = {
       env: {
         NODE_ENV: 'production'
       },
-      error_file: './logs/scheduler-error.log',
-      out_file: './logs/scheduler-out.log',
-      log_file: './logs/scheduler-combined.log',
+      error_file: './scripts/logs/scheduler-error.log',
+      out_file: './scripts/logs/scheduler-out.log',
+      log_file: './scripts/logs/scheduler-combined.log',
       time: true
     }
   ]
