@@ -17,7 +17,7 @@ const tableLogFile = path.join(__dirname, "table_creation.log");
 const ROBOT_CONFIG = {
   // 触发条件
   maxTableCount: 3, // 桌局总数 < 3 桌时自动补
-  createInterval: 5, // 每次创建至少间隔5分钟
+  createInterval: 10, // 每次创建至少间隔10分钟
 
   // 时间段
   workStartHour: 10, // 工作开始时间 10:00
@@ -537,9 +537,9 @@ function startScheduler() {
   // 立即执行一次
   executeTask();
 
-  // 每 1 分钟执行一次
-  // cron 表达式: "0 * * * * *"
-  cron.schedule("0 * * * * *", executeTask);
+  // 每 5 分钟执行一次
+  // cron 表达式: "0 */5 * * * *"
+  cron.schedule("0 */5 * * * *", executeTask);
 
   log("✅ 定时任务设置完成");
 }
