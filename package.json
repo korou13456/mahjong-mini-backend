@@ -15,8 +15,11 @@
     "pm2:delete": "pm2 delete ecosystem.config.js",
     "pm2:logs": "pm2 logs",
     "pm2:status": "pm2 status",
-    "pm2:scheduler": "pm2 start cron-scheduler.js --name scheduler",
+    "pm2:scheduler": "pm2 start scripts/ecosystem.scheduler.config.js",
     "pm2:scheduler:stop": "pm2 stop scheduler",
+    "pm2:scheduler:restart": "pm2 restart scheduler",
+    "pm2:scheduler:delete": "pm2 delete scheduler",
+    "pm2:scheduler:logs": "pm2 logs scheduler",
     "deploy": "pm2 restart my-backend"
   },
   "keywords": [],
