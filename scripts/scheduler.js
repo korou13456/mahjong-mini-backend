@@ -1,5 +1,7 @@
 // scheduler.js - 机器人桌局管理系统
-require("dotenv").config();
+const env = process.env.NODE_ENV || 'development';
+console.log(`当前环境: ${env}`);
+require("dotenv").config({ path: `.env.${env}` });
 const cron = require("node-cron");
 const fs = require("fs");
 const path = require("path");
