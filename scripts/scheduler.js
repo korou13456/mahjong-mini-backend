@@ -532,7 +532,7 @@ async function executeTask() {
  * 启动定时任务
  */
 function startScheduler() {
-  log("🤖 机器人桌局管理系统已启动，每 1 分钟执行一次");
+  log("🤖 机器人桌局管理系统已启动，每 5 分钟执行一次");
 
   // 立即执行一次
   executeTask();
