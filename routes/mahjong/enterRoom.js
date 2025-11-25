@@ -95,6 +95,21 @@ async function cleanVirtualUsersOnJoin(conn, tableId, newUserId) {
 
 // 成局逻辑抽离
 async function handleMatchSuccess(conn, tableId) {
+  // 查询房间信息
+  const table = await queryOne(
+    conn,
+    `SELECT * FROM table_list WHERE id = ?`,
+    [tableId]
+  );
+  
+  if (!table) {
+    console.error(`房间不存在: tableId=${tableId}`);
+    return;
+  }
+
+  // 解析最终参与者
+  const finalParticipants = parseParticipants(table.participants);
+
   // 更新状态
   await conn.query(
     `UPDATE table_list SET status = 1, start_match_time = NOW() WHERE id = ?`,
@@ -128,13 +143,15 @@ async function handleMatchSuccess(conn, tableId) {
 
   // 解析管理员用户ID数组
   let adminUserIds = [];
-  try {
-    adminUserIds = Array.isArray(storeDetail.user_id)
-      ? storeDetail.user_id
-      : JSON.parse(storeDetail.user_id || "[]");
-  } catch (e) {
-    console.warn("解析store user_id失败:", e.message);
-    adminUserIds = [];
+  if (storeDetail) {
+    try {
+      adminUserIds = Array.isArray(storeDetail.user_id)
+        ? storeDetail.user_id
+        : JSON.parse(storeDetail.user_id || "[]");
+    } catch (e) {
+      console.warn("解析store user_id失败:", e.message);
+      adminUserIds = [];
+    }
   }
 
   // 查询所有管理员的service_openid
@@ -179,9 +196,9 @@ async function handleMatchSuccess(conn, tableId) {
       {
         tableId: encodeRoomId(tableId),
         roomTitle: title,
-        storeName: storeDetail.store_name,
-        storeAddress: storeDetail.address_detail,
-        storePhone: storeDetail.manager_phone,
+        storeName: storeDetail?.store_name || "未知商家",
+        storeAddress: storeDetail?.address_detail || "地址未知",
+        storePhone: storeDetail?.manager_phone || "电话未知",
       },
       "",
       adminMiniProgram
