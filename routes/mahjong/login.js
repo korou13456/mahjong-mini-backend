@@ -3,6 +3,7 @@ const db = require("../../config/database");
 const axios = require("axios");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const { newUserRegisterReward } = require("./invitePoints");
 
 // JWT secret（已从环境变量读取）
 const JWT_SECRET = process.env.JWT_SECRET || "change_me_in_env";
@@ -29,7 +30,8 @@ const wechatLogin = async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    const { code, encryptedData, iv } = req.body;
+    const { code, encryptedData, iv, inviteSource } = req.body;
+    const guid = req.headers.guid;
 
     if (!code) {
       return res.status(400).json({ code: 400, message: "缺少登录凭证code" });
@@ -96,7 +98,7 @@ const wechatLogin = async (req, res) => {
 
     // 查询是否已有该微信用户
     const [existingUsers] = await connection.execute(
-      "SELECT id, user_id, nickname, avatar_url, gender, phone_num, total_game_cnt, total_game_create FROM users WHERE wxid = ?",
+      "SELECT id, user_id, nickname, avatar_url, gender, phone_num, total_game_cnt, total_game_create, guid FROM users WHERE wxid = ?",
       [openid]
     );
 
@@ -105,7 +107,14 @@ const wechatLogin = async (req, res) => {
 
     if (existingUsers.length > 0) {
       user = existingUsers[0];
-      if (!user.phone_num && phoneNumber) {
+
+      // 检查是否需要更新guid
+      if (guid && !user.guid) {
+        await connection.execute(
+          "UPDATE users SET guid = ?, last_login_at = NOW() WHERE id = ?",
+          [guid, user.id]
+        );
+      } else if (!user.phone_num && phoneNumber) {
         await connection.execute(
           "UPDATE users SET phone_num = ?, last_login_at = NOW() WHERE id = ?",
           [phoneNumber, user.id]
@@ -120,7 +129,7 @@ const wechatLogin = async (req, res) => {
     } else {
       // 按 unionid 再次检索：如果有对应用户，则将当前小程序 openid 绑定到该记录并完善必要字段
       const [unionUsers] = await connection.execute(
-        "SELECT id, user_id, nickname, avatar_url, gender, phone_num FROM users WHERE unionid = ? LIMIT 1",
+        "SELECT id, user_id, nickname, avatar_url, gender, phone_num, guid FROM users WHERE unionid = ? LIMIT 1",
         [unionid]
       );
       if (unionUsers.length > 0) {
@@ -133,6 +142,12 @@ const wechatLogin = async (req, res) => {
         updates.push("wxid = ?");
         params.push(openid);
         updates.push("last_login_at = NOW()");
+
+        // 如果有guid且原记录没有，则写入
+        if (guid && !existed.guid) {
+          updates.push("guid = ?");
+          params.push(guid);
+        }
 
         // 如果有手机号且原记录没有，则写入
         if (phoneNumber && !existed.phone_num) {
@@ -181,10 +196,21 @@ const wechatLogin = async (req, res) => {
         // 根据gender设置默认头像URL
         const avatarUrl = getDefaultAvatarUrl(gender);
         const [insertResult] = await connection.execute(
-          `INSERT INTO users (user_id, wxid, nickname, avatar_url, gender, phone_num, unionid, last_login_at, status, total_game_cnt, total_game_create)
-           VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), 0, 0, 0)`,
-          [userId, openid, nickname, avatarUrl, gender, phoneNumber, unionid]
+          `INSERT INTO users (user_id, wxid, nickname, avatar_url, gender, phone_num, unionid, last_login_at, status, total_game_cnt, total_game_create, source, guid)
+           VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), 0, 0, 0, ?, ?)`,
+          [
+            userId,
+            openid,
+            nickname,
+            avatarUrl,
+            gender,
+            phoneNumber,
+            unionid,
+            inviteSource || null,
+            guid || null,
+          ]
         );
+        newUserRegisterReward(connection, userId, guid, inviteSource);
 
         user = {
           id: insertResult.insertId,

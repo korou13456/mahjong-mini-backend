@@ -19,8 +19,16 @@ const getUserInfoByPhone = require("./getUserInfoByPhone");
 const adminCreateRoom = require("./adminCreateRoom");
 const createMenu = require("./createMenu");
 const eventLog = require("./eventLog");
+const {
+  invitePoints,
+  sharePoints,
+  getPointHistory,
+  getScoreSummary,
+  getScoreRanking,
+} = require("./invitePoints");
 
 const wechat = require("./wechat");
+const { getActivityStatus } = require("./activitySwitch");
 
 // 获取麻将房间列表
 router.get("/get-table-list", getTableList);
@@ -55,6 +63,18 @@ router.post("/wechat", wechat.wechatReceive);
 router.get("/create-menu", createMenu);
 // 记录事件日志
 router.post("/event-log", eventLog);
+// 记录邀请积分
+router.post("/invite-points", invitePoints);
+// 记录分享积分
+router.post("/share-points", sharePoints);
+// 获取积分明细
+router.get("/point-history", authMiddleware, getPointHistory);
+// 获取积分汇总
+router.get("/score-summary", authMiddleware, getScoreSummary);
+// 获取积分榜
+router.get("/score-ranking", getScoreRanking);
+// 获取活动开关状态
+router.get("/activity-status", getActivityStatus);
 
 // 用户协议 H5 页面
 router.get("/agreement-user", (req, res) => {

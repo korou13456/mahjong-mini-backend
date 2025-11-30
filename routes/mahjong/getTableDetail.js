@@ -8,6 +8,8 @@ const {
   fetchStoreMap,
   separateUserIds,
 } = require("../../utils/roomHelpers");
+const { extractUserIdFromToken } = require("../../utils/tokenHelpers");
+
 const JWT_SECRET = process.env.JWT_SECRET;
 
 const getTableDetail = async (req, res) => {
@@ -21,17 +23,7 @@ const getTableDetail = async (req, res) => {
       });
     }
 
-    let currentUserId = null;
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.split(" ")[1];
-      try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        currentUserId = decoded.userId;
-      } catch {
-        currentUserId = null;
-      }
-    }
+    const currentUserId = extractUserIdFromToken(req);
 
     // 查询房间基本信息
     const sqlRoom = `
@@ -135,7 +127,8 @@ const getTableDetail = async (req, res) => {
 
     // 返回结果
     res.json({
-      success: true,
+      code: 200,
+      message: "success",
       data: {
         ...room,
         storeInfo,

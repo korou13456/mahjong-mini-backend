@@ -1,6 +1,7 @@
 const db = require("../../config/database");
 const fs = require("fs");
 const path = require("path");
+const { completeInfoReward } = require("./invitePoints");
 
 // 生成完整的文件URL
 function getFileUrl(filename) {
@@ -103,6 +104,36 @@ const updateUserInfo = async (req, res) => {
     if (result.affectedRows === 0) {
       await connection.rollback();
       return res.status(404).json({ message: "用户不存在或未更新" });
+    }
+
+    // 查询更新后的用户信息，检查是否满足完善信息奖励条件
+    const [userRows] = await connection.execute(
+      "SELECT gender, location FROM users WHERE user_id = ?",
+      [user_id]
+    );
+
+    if (userRows.length > 0) {
+      const user = userRows[0];
+
+      // 检查性别不为0且地区不为空
+      if (
+        user.gender &&
+        user.gender !== 0 &&
+        user.location &&
+        user.location.trim() !== ""
+      ) {
+        try {
+          const guid = req.headers.guid;
+          const rewardResult = await completeInfoReward(
+            connection,
+            user_id,
+            guid
+          );
+        } catch (error) {
+          console.error(`完善信息积分奖励异常: 用户ID=${user_id}`, error);
+          // 积分奖励失败不影响主流程
+        }
+      }
     }
 
     // 删除旧头像文件（本地文件且路径非空）

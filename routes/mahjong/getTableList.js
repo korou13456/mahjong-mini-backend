@@ -6,13 +6,12 @@ const {
   fetchStoreMap,
   encodeRoomId,
 } = require("../../utils/roomHelpers");
+const { extractUserIdFromToken } = require("../../utils/tokenHelpers");
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // 提取所有有效用户ID（包括正数和负数）
 const extractUserIds = (participants) => {
-  return participants
-    .map((id) => Number(id))
-    .filter((id) => !isNaN(id));
+  return participants.map((id) => Number(id)).filter((id) => !isNaN(id));
 };
 
 // 分离真实用户和虚拟用户ID
@@ -29,17 +28,7 @@ const getTableList = async (req, res) => {
     await connection.beginTransaction();
 
     // 解析 token，获取当前用户ID（非强制）
-    let currentUserId = null;
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.split(" ")[1];
-      try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        currentUserId = decoded.userId;
-      } catch {
-        console.warn("Token无效或已过期，但不影响查询");
-      }
-    }
+    const currentUserId = extractUserIdFromToken(req);
 
     // 更新过期房间状态
     const findExpiredSql = `
@@ -66,10 +55,10 @@ const getTableList = async (req, res) => {
 
       if (allUserIds.length > 0) {
         const uniqueUserIds = [...new Set(allUserIds)];
-        
+
         // 分离真实用户和虚拟用户
         const { realUsers, virtualUsers } = separateUserIds(uniqueUserIds);
-        
+
         // 更新真实用户状态
         if (realUsers.length > 0) {
           const userPlaceholders = realUsers.map(() => "?").join(",");
@@ -78,7 +67,7 @@ const getTableList = async (req, res) => {
             realUsers
           );
         }
-        
+
         // 更新虚拟用户状态
         if (virtualUsers.length > 0) {
           const virtualPlaceholders = virtualUsers.map(() => "?").join(",");
@@ -152,7 +141,7 @@ const getTableList = async (req, res) => {
         WHERE user_id IN (${placeholders})`,
         virtualUsers
       );
-      
+
       virtualRows.forEach((u) => {
         virtualUserMap[u.userId] = {
           ...u,
@@ -257,7 +246,8 @@ const getTableList = async (req, res) => {
         });
 
         // 分离游戏房间的真实用户和虚拟用户
-        const { realUsers: gameRealUsers, virtualUsers: gameVirtualUsers } = separateUserIds(Array.from(gameUserIds));
+        const { realUsers: gameRealUsers, virtualUsers: gameVirtualUsers } =
+          separateUserIds(Array.from(gameUserIds));
 
         // 查询游戏房间真实用户信息
         let gameUserMap = {};
@@ -279,7 +269,7 @@ const getTableList = async (req, res) => {
             WHERE user_id IN (${placeholders})`,
             gameVirtualUsers
           );
-          
+
           gameVirtualRows.forEach((u) => {
             gameVirtualUserMap[u.userId] = {
               ...u,

@@ -7,6 +7,10 @@ const {
   encodeRoomId,
 } = require("../../utils/roomHelpers");
 const { pushMessage } = require("../../utils/wechat");
+const {
+  completeTableReward,
+  inviteUserCompleteTableReward,
+} = require("./invitePoints");
 
 // 通用查询一条
 async function queryOne(conn, sql, params) {
@@ -61,14 +65,14 @@ async function cleanVirtualUsersOnJoin(conn, tableId, newUserId) {
 
   const participantIds = parseParticipants(table.participants);
   const reqNum = table.req_num || 4; // 默认4人
-  
+
   if (!participantIds.length) return;
 
   // 当房间人数等于req_num时，检查是否有虚拟用户
   if (participantIds.length === reqNum) {
     // 识别虚拟用户（user_id < 0）
     const robots = participantIds.filter((id) => id < 0);
-    
+
     if (robots.length > 0) {
       // 踢出去一个虚拟用户（第一个）
       const robotToExit = robots[0];
@@ -88,20 +92,24 @@ async function cleanVirtualUsersOnJoin(conn, tableId, newUserId) {
         [robotToExit]
       );
 
-      console.log(`房间满员清理虚拟用户: 桌局ID=${tableId}, 当前人数=${participantIds.length}, 需求人数=${reqNum}, 踢出机器人ID=${robotToExit}, 新房主ID=${result.newHostId}, 剩余参与者=${(result.participants || []).length}人`);
+      console.log(
+        `房间满员清理虚拟用户: 桌局ID=${tableId}, 当前人数=${
+          participantIds.length
+        }, 需求人数=${reqNum}, 踢出机器人ID=${robotToExit}, 新房主ID=${
+          result.newHostId
+        }, 剩余参与者=${(result.participants || []).length}人`
+      );
     }
   }
 }
 
-// 成局逻辑抽离
-async function handleMatchSuccess(conn, tableId) {
+// 匹配成功时处理
+async function handleMatchSuccess(conn, tableId, guid) {
   // 查询房间信息
-  const table = await queryOne(
-    conn,
-    `SELECT * FROM table_list WHERE id = ?`,
-    [tableId]
-  );
-  
+  const table = await queryOne(conn, `SELECT * FROM table_list WHERE id = ?`, [
+    tableId,
+  ]);
+
   if (!table) {
     console.error(`房间不存在: tableId=${tableId}`);
     return;
@@ -132,6 +140,16 @@ async function handleMatchSuccess(conn, tableId) {
       `INSERT INTO game_sessions (table_id, user_id, status) VALUES ?`,
       [insertValues]
     );
+  }
+
+  // 给所有真实玩家组成桌局奖励积分
+  for (const userId of realUsers) {
+    try {
+      await completeTableReward(conn, userId, guid);
+      await inviteUserCompleteTableReward(conn, userId, guid);
+    } catch (error) {
+      console.error(`桌局积分奖励异常: 用户ID=${userId}`, error);
+    }
   }
 
   // 查商家
@@ -242,6 +260,7 @@ const enterRoom = async (req, res) => {
 
     const { tableId, currentTableId } = req.body;
     const userId = req.user.userId;
+    const guid = req.headers.guid;
 
     if (!tableId)
       return res.status(400).json({
@@ -301,10 +320,10 @@ const enterRoom = async (req, res) => {
 
     if (updatedTable) {
       const currentParticipants = parseParticipants(updatedTable.participants);
-      
+
       // 满员 → 成局
       if (currentParticipants.length >= maxParticipants) {
-        await handleMatchSuccess(connection, tableId);
+        await handleMatchSuccess(connection, tableId, guid);
       }
     }
 
