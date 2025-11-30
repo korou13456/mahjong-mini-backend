@@ -561,12 +561,12 @@ const getScoreRanking = async (req, res) => {
   const connection = await db.getConnection();
 
   try {
-    // 查询积分榜前十，直接使用JOIN优化查询
+    // 让 MySQL 自己判断是否为今天
     const [topUsers] = await connection.execute(
       `SELECT 
         us.user_id as userId,
         us.total_score as totalScore,
-        us.today_score as todayScore,
+        IF(DATE(us.updated_at) = CURDATE(), us.today_score, 0) AS todayScore,
         us.updated_at as updatedAt,
         u.nickname,
         u.avatar_url as avatarUrl
@@ -576,25 +576,11 @@ const getScoreRanking = async (req, res) => {
        LIMIT 10`
     );
 
-    // 获取今天的日期
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-
-    // 添加排名
-    const ranking = topUsers.map((user, index) => {
-      // 检查更新时间是否是今天
-      const lastUpdateDate = user.updatedAt.toISOString().split("T")[0];
-      const todayScore = lastUpdateDate === today ? user.todayScore : 0;
-
-      return {
-        userId: user.userId,
-        totalScore: user.totalScore,
-        todayScore: todayScore,
-        updatedAt: user.updatedAt,
-        rank: index + 1,
-        nickname: user.nickname,
-        avatarUrl: user.avatarUrl,
-      };
-    });
+    // 添加 rank
+    const ranking = topUsers.map((user, index) => ({
+      ...user,
+      rank: index + 1,
+    }));
 
     res.json({
       success: true,
