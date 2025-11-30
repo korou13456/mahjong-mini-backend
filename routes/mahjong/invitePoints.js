@@ -94,7 +94,7 @@ async function updateUserScoreSummary(conn, userId, score = 0) {
 async function newUserRegisterReward(conn, userId, guid, inviteSource = null) {
   // 只给邀请者加分，新用户不加分
   if (inviteSource) {
-    const inviteScore = 20; // 邀请奖励100分
+    const inviteScore = 30; // 邀请奖励30分
     const inviteType = 3; // 邀请积分类型
 
     await updateUserScoreSummary(conn, inviteSource, inviteScore);
@@ -221,7 +221,7 @@ async function inviteUserCompleteTableReward(conn, userId, guid) {
   };
 }
 
-// 分享积分奖励（每天最多五次）
+// 分享积分奖励（每天最多十次）
 async function shareReward(conn, userId, guid) {
   const shareScore = 1; // 分享奖励1分
   const shareType = 6; // 分享积分类型
@@ -235,7 +235,7 @@ async function shareReward(conn, userId, guid) {
 
   const todayCount = todayRecords[0]?.count || 0;
 
-  if (todayCount >= 5) {
+  if (todayCount >= 10) {
     return {
       success: false,
       message: "今日分享积分已达上限（5次）",
@@ -409,7 +409,7 @@ const invitePoints = async (req, res) => {
     }
 
     // 邀请用户打开小程序，每次加10分
-    const score = 10;
+    const score = 5;
     const inviteType = 1; // 固定为邀请积分类型
 
     // 记录积分（source作为获得积分的用户ID，user_id字段为null因为这是直接奖励）
@@ -553,13 +553,13 @@ const getScoreSummary = async (req, res) => {
     const totalUsers = totalUsersResult[0]?.total || 0;
 
     // 获取今天的日期
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    
+    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+
     // 检查更新时间是否是今天，决定今日积分显示
     let todayScore = 0;
     if (userScore?.updated_at) {
-      const lastUpdateDate = userScore.updated_at.toISOString().split('T')[0];
-      todayScore = lastUpdateDate === today ? (userScore?.today_score || 0) : 0;
+      const lastUpdateDate = userScore.updated_at.toISOString().split("T")[0];
+      todayScore = lastUpdateDate === today ? userScore?.today_score || 0 : 0;
     }
 
     res.json({
@@ -606,14 +606,14 @@ const getScoreRanking = async (req, res) => {
     );
 
     // 获取今天的日期
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    
+    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+
     // 添加排名
     const ranking = topUsers.map((user, index) => {
       // 检查更新时间是否是今天
-      const lastUpdateDate = user.updatedAt.toISOString().split('T')[0];
+      const lastUpdateDate = user.updatedAt.toISOString().split("T")[0];
       const todayScore = lastUpdateDate === today ? user.todayScore : 0;
-      
+
       return {
         userId: user.userId,
         totalScore: user.totalScore,
