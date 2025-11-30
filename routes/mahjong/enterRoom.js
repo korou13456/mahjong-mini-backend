@@ -104,7 +104,7 @@ async function cleanVirtualUsersOnJoin(conn, tableId, newUserId) {
 }
 
 // 匹配成功时处理
-async function handleMatchSuccess(conn, tableId, guid) {
+async function handleMatchSuccess(conn, tableId) {
   // 查询房间信息
   const table = await queryOne(conn, `SELECT * FROM table_list WHERE id = ?`, [
     tableId,
@@ -145,8 +145,17 @@ async function handleMatchSuccess(conn, tableId, guid) {
   // 给所有真实玩家组成桌局奖励积分
   for (const userId of realUsers) {
     try {
-      await completeTableReward(conn, userId, guid);
-      await inviteUserCompleteTableReward(conn, userId, guid);
+      // 根据userId查询users表的guid
+      const user = await queryOne(
+        conn,
+        `SELECT guid FROM users WHERE user_id = ?`,
+        [userId]
+      );
+
+      const userGuid = user.guid || "";
+
+      await completeTableReward(conn, userId, userGuid);
+      await inviteUserCompleteTableReward(conn, userId, userGuid);
     } catch (error) {
       console.error(`桌局积分奖励异常: 用户ID=${userId}`, error);
     }
@@ -260,7 +269,6 @@ const enterRoom = async (req, res) => {
 
     const { tableId, currentTableId } = req.body;
     const userId = req.user.userId;
-    const guid = req.headers.guid;
 
     if (!tableId)
       return res.status(400).json({
@@ -323,7 +331,7 @@ const enterRoom = async (req, res) => {
 
       // 满员 → 成局
       if (currentParticipants.length >= maxParticipants) {
-        await handleMatchSuccess(connection, tableId, guid);
+        await handleMatchSuccess(connection, tableId);
       }
     }
 
