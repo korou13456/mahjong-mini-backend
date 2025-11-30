@@ -552,6 +552,16 @@ const getScoreSummary = async (req, res) => {
     );
     const totalUsers = totalUsersResult[0]?.total || 0;
 
+    // 获取今天的日期
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    // 检查更新时间是否是今天，决定今日积分显示
+    let todayScore = 0;
+    if (userScore?.updated_at) {
+      const lastUpdateDate = userScore.updated_at.toISOString().split('T')[0];
+      todayScore = lastUpdateDate === today ? (userScore?.today_score || 0) : 0;
+    }
+
     res.json({
       success: true,
       data: {
@@ -559,7 +569,7 @@ const getScoreSummary = async (req, res) => {
         nickname: userInfo.nickname || "",
         avatarUrl: userInfo.avatar_url || "",
         totalScore: userScore?.total_score || 0,
-        todayScore: userScore?.today_score || 0,
+        todayScore: todayScore,
         rank: userRank,
         totalUsers: totalUsers,
       },
@@ -595,16 +605,25 @@ const getScoreRanking = async (req, res) => {
        LIMIT 10`
     );
 
+    // 获取今天的日期
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    
     // 添加排名
-    const ranking = topUsers.map((user, index) => ({
-      userId: user.userId,
-      totalScore: user.totalScore,
-      todayScore: user.todayScore,
-      updatedAt: user.updatedAt,
-      rank: index + 1,
-      nickname: user.nickname,
-      avatarUrl: user.avatarUrl,
-    }));
+    const ranking = topUsers.map((user, index) => {
+      // 检查更新时间是否是今天
+      const lastUpdateDate = user.updatedAt.toISOString().split('T')[0];
+      const todayScore = lastUpdateDate === today ? user.todayScore : 0;
+      
+      return {
+        userId: user.userId,
+        totalScore: user.totalScore,
+        todayScore: todayScore,
+        updatedAt: user.updatedAt,
+        rank: index + 1,
+        nickname: user.nickname,
+        avatarUrl: user.avatarUrl,
+      };
+    });
 
     res.json({
       success: true,
