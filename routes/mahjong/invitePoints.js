@@ -45,8 +45,9 @@ async function recordPointLog(
 
 // 更新用户积分聚合表
 async function updateUserScoreSummary(conn, userId, score = 0) {
-  // 查询用户是否已有积分记录
   const connection = await db.getConnection();
+
+  // 查询是否存在记录
   const existingSummary = await queryOne(
     conn,
     `SELECT * FROM user_score_summary WHERE user_id = ?`,
@@ -54,43 +55,20 @@ async function updateUserScoreSummary(conn, userId, score = 0) {
   );
 
   if (existingSummary) {
-    // 检查更新时间是否是今天
-    const today = new Date()
-      .toLocaleDateString("zh-CN", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      })
-      .replace(/\//g, "-");
-    const lastUpdateDate = existingSummary.updated_at
-      .toISOString()
-      .split("T")[0];
-
-    console.log(lastUpdateDate, today, "=====>lastUpdateDate ,today");
-
-    if (lastUpdateDate === today) {
-      // 如果是今天，累加today_score
-      await connection.execute(
-        `UPDATE user_score_summary 
-         SET total_score = total_score + ?, 
-             today_score = today_score + ?,
-             updated_at = NOW()
-         WHERE user_id = ?`,
-        [score, score, userId]
-      );
-    } else {
-      // 如果不是今天，重置today_score为当前分数
-      await connection.execute(
-        `UPDATE user_score_summary 
-         SET total_score = total_score + ?, 
-             today_score = ?,
-             updated_at = NOW()
-         WHERE user_id = ?`,
-        [score, score, userId]
-      );
-    }
+    // 利用 MySQL 判断是否为当天
+    await connection.execute(
+      `
+      UPDATE user_score_summary 
+      SET 
+        total_score = total_score + ?, 
+        today_score = IF(DATE(updated_at) = CURDATE(), today_score + ?, ?),
+        updated_at = NOW()
+      WHERE user_id = ?
+      `,
+      [score, score, score, userId]
+    );
   } else {
-    // 创建新记录
+    // 新增记录
     await connection.execute(
       `INSERT INTO user_score_summary 
        (user_id, total_score, today_score, created_at, updated_at) 
