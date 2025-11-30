@@ -20,7 +20,7 @@ async function recordPointLog(
 ) {
   // 检查是否已存在相同记录（防止重复）
   let existingLog = false;
-  console.log(ifRepeat, "=====>>>ifRepeat");
+  console.log(ifRepeat, type, guid, source, "=====>>>ifRepeat");
   if (ifRepeat) {
     existingLog = await queryOne(
       conn,
@@ -42,7 +42,7 @@ async function recordPointLog(
   );
   console.log(score, "=====>>>score");
   await updateUserScoreSummary(conn, source, score);
-  console.log("======================================");
+  console.log("======================================end");
 
   return { success: true };
 }
@@ -166,7 +166,7 @@ async function completeTableReward(conn, userId, guid) {
 async function inviteUserCompleteTableReward(conn, userId, guid) {
   const inviteTableScore = 80; // 邀请新用户完成桌局奖励80分
   const inviteTableType = 3; // 桌局积分类型
-  console.log("======================================");
+  console.log("======================================start");
 
   console.log(userId, "====>>>userId");
   // 查询用户的邀请来源
