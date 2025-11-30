@@ -38,6 +38,7 @@ async function recordPointLog(
      VALUES (?, ?, ?, ?, ?)`,
     [type, score, guid || "", user_id || null, source || null]
   );
+  updateUserScoreSummary(conn, source, score);
 
   return { success: true };
 }
@@ -97,8 +98,6 @@ async function newUserRegisterReward(conn, userId, guid, inviteSource = null) {
     const inviteScore = 20; // 邀请奖励30分
     const inviteType = 3; // 邀请积分类型
 
-    await updateUserScoreSummary(conn, inviteSource, inviteScore);
-
     await recordPointLog(
       conn,
       inviteType,
@@ -140,9 +139,6 @@ async function completeTableReward(conn, userId, guid) {
       tableScore: 0,
     };
   }
-
-  // 更新积分聚合表
-  await updateUserScoreSummary(conn, userId, tableScore);
 
   // 记录积分日志
   await recordPointLog(
@@ -200,9 +196,6 @@ async function inviteUserCompleteTableReward(conn, userId, guid) {
     };
   }
 
-  // 给邀请人更新积分聚合表
-  await updateUserScoreSummary(conn, inviterId, inviteTableScore);
-
   // 记录积分日志（user_id是邀请人ID，source是被邀请人ID）
   await recordPointLog(
     conn,
@@ -244,9 +237,6 @@ async function shareReward(conn, userId, guid) {
     };
   }
 
-  // 更新积分聚合表
-  await updateUserScoreSummary(conn, userId, shareScore);
-
   // 记录积分日志
   await recordPointLog(
     conn,
@@ -286,9 +276,6 @@ async function completeInfoReward(conn, userId, guid) {
       completeInfoScore: 0,
     };
   }
-
-  // 更新积分聚合表
-  await updateUserScoreSummary(conn, userId, completeInfoScore);
 
   // 记录积分日志
   await recordPointLog(
@@ -415,9 +402,6 @@ const invitePoints = async (req, res) => {
 
     // 记录积分（source作为获得积分的用户ID，user_id字段为null因为这是直接奖励）
     await recordPointLog(connection, inviteType, score, guid, null, source);
-
-    // 更新积分聚合表
-    await updateUserScoreSummary(connection, source, score);
 
     // 获取用户最新的积分信息
     const userScore = await getUserScoreSummary(connection, source);
