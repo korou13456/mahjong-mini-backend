@@ -46,6 +46,7 @@ async function recordPointLog(
 // 更新用户积分聚合表
 async function updateUserScoreSummary(conn, userId, score = 0) {
   // 查询用户是否已有积分记录
+  const connection = await db.getConnection();
   const existingSummary = await queryOne(
     conn,
     `SELECT * FROM user_score_summary WHERE user_id = ?`,
