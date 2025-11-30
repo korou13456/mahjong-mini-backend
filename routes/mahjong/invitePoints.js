@@ -69,7 +69,7 @@ async function updateUserScoreSummary(conn, userId, score = 0) {
 
     if (lastUpdateDate === today) {
       // 如果是今天，累加today_score
-      await conn.execute(
+      await connection.execute(
         `UPDATE user_score_summary 
          SET total_score = total_score + ?, 
              today_score = today_score + ?,
@@ -79,7 +79,7 @@ async function updateUserScoreSummary(conn, userId, score = 0) {
       );
     } else {
       // 如果不是今天，重置today_score为当前分数
-      await conn.execute(
+      await connection.execute(
         `UPDATE user_score_summary 
          SET total_score = total_score + ?, 
              today_score = ?,
@@ -90,7 +90,7 @@ async function updateUserScoreSummary(conn, userId, score = 0) {
     }
   } else {
     // 创建新记录
-    await conn.execute(
+    await connection.execute(
       `INSERT INTO user_score_summary 
        (user_id, total_score, today_score, created_at, updated_at) 
        VALUES (?, ?, ?, NOW(), NOW())`,
