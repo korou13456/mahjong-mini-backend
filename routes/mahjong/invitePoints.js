@@ -122,7 +122,7 @@ async function newUserRegisterReward(conn, userId, guid, inviteSource = null) {
 
 // 用户组成桌局奖励积分（每日只能一次）
 async function completeTableReward(conn, userId, guid) {
-  const tableScore = 20; // 组成桌局奖励20分
+  const tableScore = 50; // 组成桌局奖励50分
   const tableType = 4; // 桌局积分类型
 
   // 检查今天是否已经获得过桌局积分
