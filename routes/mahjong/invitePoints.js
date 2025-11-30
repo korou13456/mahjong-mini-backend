@@ -497,8 +497,19 @@ const getScoreSummary = async (req, res) => {
   try {
     const userId = req.user.userId;
 
-    // 获取用户积分信息
-    const userScore = await getUserScoreSummary(connection, userId);
+    // 让 MySQL 自己判断todayScore
+    const [scoreResult] = await connection.execute(
+      `SELECT
+         user_id,
+         total_score,
+         IF(DATE(updated_at) = CURDATE(), today_score, 0) AS today_score,
+         updated_at
+       FROM user_score_summary
+       WHERE user_id = ?`,
+      [userId]
+    );
+
+    const userScore = scoreResult[0] || {};
 
     // 获取用户基本信息
     const [userResult] = await connection.execute(
@@ -523,24 +534,14 @@ const getScoreSummary = async (req, res) => {
     );
     const totalUsers = totalUsersResult[0]?.total || 0;
 
-    // 获取今天的日期
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-
-    // 检查更新时间是否是今天，决定今日积分显示
-    let todayScore = 0;
-    if (userScore?.updated_at) {
-      const lastUpdateDate = userScore.updated_at.toISOString().split("T")[0];
-      todayScore = lastUpdateDate === today ? userScore?.today_score || 0 : 0;
-    }
-
     res.json({
       success: true,
       data: {
         userId: userId,
         nickname: userInfo.nickname || "",
         avatarUrl: userInfo.avatar_url || "",
-        totalScore: userScore?.total_score || 0,
-        todayScore: todayScore,
+        totalScore: userScore.total_score || 0,
+        todayScore: userScore.today_score || 0, // 这里已经是数据库判断后的值
         rank: userRank,
         totalUsers: totalUsers,
       },
