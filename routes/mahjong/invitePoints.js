@@ -36,7 +36,7 @@ async function recordPointLog(
   await conn.execute(
     `INSERT INTO user_point_log (type, score, guid, user_id, source) 
      VALUES (?, ?, ?, ?, ?)`,
-    [type, score, guid, user_id, source]
+    [type, score, guid || "", user_id || null, source || null]
   );
 
   return { success: true };
@@ -94,7 +94,7 @@ async function updateUserScoreSummary(conn, userId, score = 0) {
 async function newUserRegisterReward(conn, userId, guid, inviteSource = null) {
   // 只给邀请者加分，新用户不加分
   if (inviteSource) {
-    const inviteScore = 30; // 邀请奖励30分
+    const inviteScore = 20; // 邀请奖励30分
     const inviteType = 3; // 邀请积分类型
 
     await updateUserScoreSummary(conn, inviteSource, inviteScore);
@@ -339,6 +339,7 @@ const getPointHistory = async (req, res) => {
       4: "完成一次桌局（每日一次）",
       5: "邀请新用户完成桌局",
       6: "分享积分奖励",
+      7: "完善信息积分奖励",
     };
 
     // 按日期分组
@@ -388,8 +389,8 @@ const invitePoints = async (req, res) => {
 
   try {
     await connection.beginTransaction();
-
-    const { guid, source } = req.body;
+    const guid = req.headers.guid;
+    const { source } = req.body;
 
     if (!guid || !source) {
       await connection.rollback();
