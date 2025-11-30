@@ -54,7 +54,13 @@ async function updateUserScoreSummary(conn, userId, score = 0) {
 
   if (existingSummary) {
     // 检查更新时间是否是今天
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    const today = new Date()
+      .toLocaleDateString("zh-CN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+      .replace(/\//g, "-");
     const lastUpdateDate = existingSummary.updated_at
       .toISOString()
       .split("T")[0];
