@@ -162,7 +162,7 @@ async function completeTableReward(conn, userId, guid) {
 async function inviteUserCompleteTableReward(conn, userId, guid) {
   const inviteTableScore = 80; // 邀请新用户完成桌局奖励80分
   const inviteTableType = 3; // 桌局积分类型
-
+  console.log(userId, "====>>>userId");
   // 查询用户的邀请来源
   const user = await queryOne(
     conn,
@@ -186,6 +186,12 @@ async function inviteUserCompleteTableReward(conn, userId, guid) {
     `SELECT id FROM user_point_log 
      WHERE user_id = ? AND type = ? AND source = ?`,
     [userId, inviteTableType, inviterId]
+  );
+  console.log(
+    inviteTableType,
+    inviterId,
+    existingRecord,
+    "!====>>>existingRecord"
   );
 
   if (existingRecord) {
