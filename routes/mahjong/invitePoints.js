@@ -38,7 +38,7 @@ async function recordPointLog(
      VALUES (?, ?, ?, ?, ?)`,
     [type, score, guid || "", user_id || null, source || null]
   );
-  updateUserScoreSummary(conn, source, score);
+  await updateUserScoreSummary(conn, source, score);
 
   return { success: true };
 }
