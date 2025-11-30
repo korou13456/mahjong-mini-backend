@@ -313,7 +313,7 @@ const getPointHistory = async (req, res) => {
     // 查询用户积分历史记录，按创建时间倒序
     const [historyRecords] = await connection.execute(
       `SELECT type, score, created_at FROM user_point_log 
-       WHERE user_id = ? 
+       WHERE source = ? 
        ORDER BY created_at DESC`,
       [userId]
     );
