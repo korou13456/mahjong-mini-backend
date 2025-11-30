@@ -96,7 +96,7 @@ async function newUserRegisterReward(conn, userId, guid, inviteSource = null) {
   // 只给邀请者加分，新用户不加分
   if (inviteSource) {
     const inviteScore = 20; // 邀请奖励30分
-    const inviteType = 3; // 邀请积分类型
+    const inviteType = 2; // 邀请积分类型
 
     await recordPointLog(
       conn,
@@ -161,7 +161,7 @@ async function completeTableReward(conn, userId, guid) {
 // 邀请新用户完成桌局奖励（给邀请人加分）
 async function inviteUserCompleteTableReward(conn, userId, guid) {
   const inviteTableScore = 80; // 邀请新用户完成桌局奖励80分
-  const inviteTableType = 5; // 桌局积分类型
+  const inviteTableType = 3; // 桌局积分类型
 
   // 查询用户的邀请来源
   const user = await queryOne(
@@ -185,7 +185,7 @@ async function inviteUserCompleteTableReward(conn, userId, guid) {
     conn,
     `SELECT id FROM user_point_log 
      WHERE user_id = ? AND type = ? AND source = ?`,
-    [inviterId, inviteTableType, userId]
+    [userId, inviteTableType, inviterId]
   );
 
   if (existingRecord) {
@@ -202,8 +202,8 @@ async function inviteUserCompleteTableReward(conn, userId, guid) {
     inviteTableType,
     inviteTableScore,
     guid,
-    inviterId,
-    userId
+    userId,
+    inviterId
   );
 
   return {
@@ -259,7 +259,7 @@ async function shareReward(conn, userId, guid) {
 // 完善信息积分奖励（仅首次）
 async function completeInfoReward(conn, userId, guid) {
   const completeInfoScore = 3; // 完善信息奖励3分
-  const completeInfoType = 7; // 完善信息积分类型
+  const completeInfoType = 5; // 完善信息积分类型
 
   // 检查是否已经获得过完善信息积分
   const existingRecord = await queryOne(
@@ -320,13 +320,12 @@ const getPointHistory = async (req, res) => {
 
     // 定义type对应的title映射
     const typeTitleMap = {
-      1: "邀请成功",
-      2: "成功组局",
-      3: "邀请用户注册账号",
-      4: "完成一次桌局（每日一次）",
-      5: "邀请新用户完成桌局",
-      6: "分享积分奖励",
-      7: "完善信息积分奖励",
+      1: "邀请新用户进入小程序",
+      2: "邀请新用户注册小程序",
+      3: "邀请新用户完成桌局",
+      4: "本人拼成一局（每日）",
+      5: "完善小程序个人信息",
+      6: "分享桌局",
     };
 
     // 按日期分组
