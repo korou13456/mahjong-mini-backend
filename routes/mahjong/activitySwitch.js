@@ -3,12 +3,12 @@ const { checkActivityPermission } = require("../../utils/activityHelper");
 // 获取活动开关状态
 const getActivityStatusApi = async (req, res) => {
   try {
-    const statusInfo = await checkActivityPermission(req, [1, 2, 3]);
+    // const statusInfo = await checkActivityPermission(req, [1, 2, 3]);
 
     res.json({
       success: true,
       data: {
-        activity: statusInfo,
+        activity: true,
       },
     });
   } catch (error) {
