@@ -29,7 +29,7 @@ async function recordPointLog(
     });
     return { success: false, message: "用户ID为空" };
   }
-  if (!source) {
+  if (!source || source == "undefined") {
     console.warn("recordPointLog: 来源ID为空", {
       type,
       score,
