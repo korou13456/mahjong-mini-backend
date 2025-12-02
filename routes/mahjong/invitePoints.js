@@ -439,6 +439,13 @@ const sharePoints = async (req, res) => {
         message: "缺少必要参数：guid",
       });
     }
+    if (!userId) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message: "缺少必要参数：userId",
+      });
+    }
 
     // 调用分享积分奖励函数
     const result = await shareReward(connection, userId, guid);
