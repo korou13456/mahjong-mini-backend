@@ -18,32 +18,26 @@ async function recordPointLog(
   source,
   ifRepeat = true
 ) {
-  // 检查是否已存在相同记录（防止重复）
-
-  if (!user_id) {
-    console.warn(
-      conn,
+  if (!user_id && user_id !== null) {
+    console.warn("recordPointLog: 用户ID为空", {
       type,
       score,
       guid,
       user_id,
       source,
       ifRepeat,
-      "用户ID为空"
-    );
+    });
     return { success: false, message: "用户ID为空" };
   }
   if (!source) {
-    console.warn(
-      conn,
+    console.warn("recordPointLog: 来源ID为空", {
       type,
       score,
       guid,
       user_id,
       source,
       ifRepeat,
-      "来源ID为空"
-    );
+    });
     return { success: false, message: "来源ID为空" };
   }
 
@@ -60,12 +54,12 @@ async function recordPointLog(
     return { success: false, message: "积分记录已存在" };
   }
 
-  // 插入积分记录
   await conn.execute(
     `INSERT INTO user_point_log (type, score, guid, user_id, source) 
      VALUES (?, ?, ?, ?, ?)`,
     [type, score, guid || "", user_id || null, source || null]
   );
+
   await updateUserScoreSummary(conn, source, score);
 
   return { success: true };
@@ -73,8 +67,6 @@ async function recordPointLog(
 
 // 更新用户积分聚合表
 async function updateUserScoreSummary(conn, userId, score = 0) {
-  const connection = await db.getConnection();
-
   // 查询是否存在记录
   const existingSummary = await queryOne(
     conn,
@@ -83,8 +75,7 @@ async function updateUserScoreSummary(conn, userId, score = 0) {
   );
 
   if (existingSummary) {
-    // 利用 MySQL 判断是否为当天
-    await connection.execute(
+    await conn.execute(
       `
       UPDATE user_score_summary 
       SET 
@@ -96,8 +87,7 @@ async function updateUserScoreSummary(conn, userId, score = 0) {
       [score, score, score, userId]
     );
   } else {
-    // 新增记录
-    await connection.execute(
+    await conn.execute(
       `INSERT INTO user_score_summary 
        (user_id, total_score, today_score, created_at, updated_at) 
        VALUES (?, ?, ?, NOW(), NOW())`,
@@ -110,7 +100,7 @@ async function updateUserScoreSummary(conn, userId, score = 0) {
 async function newUserRegisterReward(conn, userId, guid, inviteSource = null) {
   // 只给邀请者加分，新用户不加分
   if (inviteSource) {
-    const inviteScore = 20; // 邀请奖励30分
+    const inviteScore = 20; // 邀请奖励20分
     const inviteType = 2; // 邀请积分类型
 
     await recordPointLog(
@@ -246,7 +236,7 @@ async function shareReward(conn, userId, guid) {
   if (todayCount >= 10) {
     return {
       success: false,
-      message: "今日分享积分已达上限（5次）",
+      message: "今日分享积分已达上限（10次）",
       shareScore: 0,
       todayCount: todayCount,
     };
@@ -485,12 +475,11 @@ const sharePoints = async (req, res) => {
         message: result.message,
         data: {
           todayCount: result.todayCount,
-          maxCount: 5,
+          maxCount: 10,
         },
       });
     }
 
-    // 获取用户最新的积分信息
     const userScore = await getUserScoreSummary(connection, userId);
 
     await connection.commit();
@@ -510,7 +499,7 @@ const sharePoints = async (req, res) => {
         score: result.shareScore,
         type: 6,
         todayCount: result.todayCount,
-        maxCount: 5,
+        maxCount: 10,
       },
     });
   } catch (error) {
