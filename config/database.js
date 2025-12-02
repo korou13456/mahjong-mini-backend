@@ -16,7 +16,6 @@ const pool = mysql.createPool({
   connectionLimit: Number(process.env.DB_CONN_LIMIT || 10),
   queueLimit: Number(process.env.DB_QUEUE_LIMIT || 0),
   charset: "utf8mb4",
-  collation: "utf8mb4_unicode_ci",
 });
 
 const nodeEnv = process.env.NODE_ENV || "development";
@@ -25,5 +24,10 @@ console.log(
     process.env.DB_PORT || 3306
   })`
 );
+
+// 捕获连接错误（防止 scheduler 崩溃）
+pool.on("error", (err) => {
+  console.error("❌ MySQL 连接池错误:", err);
+});
 
 module.exports = pool.promise(); // 导出 promise

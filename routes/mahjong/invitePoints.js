@@ -19,6 +19,34 @@ async function recordPointLog(
   ifRepeat = true
 ) {
   // 检查是否已存在相同记录（防止重复）
+
+  if (!user_id) {
+    console.warn(
+      conn,
+      type,
+      score,
+      guid,
+      user_id,
+      source,
+      ifRepeat,
+      "用户ID为空"
+    );
+    return { success: false, message: "用户ID为空" };
+  }
+  if (!source) {
+    console.warn(
+      conn,
+      type,
+      score,
+      guid,
+      user_id,
+      source,
+      ifRepeat,
+      "来源ID为空"
+    );
+    return { success: false, message: "来源ID为空" };
+  }
+
   let existingLog = false;
   if (ifRepeat) {
     existingLog = await queryOne(
