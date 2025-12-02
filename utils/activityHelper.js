@@ -1,7 +1,7 @@
 const db = require("../config/database");
 const { extractUserIdFromToken } = require("./tokenHelpers");
 
-const activity = false; // 活动开启
+const activity = true; // 活动开启
 
 /**
  * 获取活动开关状态
