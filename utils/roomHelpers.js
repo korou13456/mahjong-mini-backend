@@ -46,6 +46,7 @@ async function leaveRoom(connection, tableId, userId) {
     "participants",
     "status",
     "host_id",
+    "req_num",
   ]);
   if (!table) return { changed: false, reason: "TABLE_NOT_FOUND" };
 
@@ -59,6 +60,13 @@ async function leaveRoom(connection, tableId, userId) {
   participants.splice(userIndex, 1);
 
   let newHostId = table.host_id;
+  let newReqNum = table.req_num;
+  
+  // 如果退出的人是房主且 req_num 是 3，则改为 4
+  if (parseInt(table.host_id) === numericUserId && table.req_num === 3) {
+    newReqNum = 4;
+  }
+  
   if (parseInt(table.host_id) === numericUserId) {
     if (participants.length > 0) {
       newHostId = participants[0];
@@ -71,8 +79,8 @@ async function leaveRoom(connection, tableId, userId) {
 
   if (newStatus == 0 || newStatus == 3)
     await connection.execute(
-      "UPDATE `table_list` SET participants = ?, host_id = ?, status = ? WHERE id = ?",
-      [stringifyParticipants(participants), newHostId, newStatus, tableId]
+      "UPDATE `table_list` SET participants = ?, host_id = ?, status = ?, req_num = ? WHERE id = ?",
+      [stringifyParticipants(participants), newHostId, newStatus, newReqNum, tableId]
     );
 
   await connection.execute(
@@ -84,6 +92,7 @@ async function leaveRoom(connection, tableId, userId) {
     changed: true,
     newHostId,
     newStatus,
+    newReqNum,
     participants,
   };
 }
