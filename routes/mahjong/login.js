@@ -27,13 +27,15 @@ function getDefaultAvatarUrl(gender) {
 
 // 获取客户端真实IP地址
 function getClientIP(req) {
-  return req.headers['x-forwarded-for']?.split(',')[0] || 
-         req.headers['x-real-ip'] || 
-         req.connection?.remoteAddress || 
-         req.socket?.remoteAddress ||
-         (req.connection?.socket ? req.connection.socket.remoteAddress : null) ||
-         req.ip ||
-         '0.0.0.0';
+  return (
+    req.headers["x-forwarded-for"]?.split(",")[0] ||
+    req.headers["x-real-ip"] ||
+    req.connection?.remoteAddress ||
+    req.socket?.remoteAddress ||
+    (req.connection?.socket ? req.connection.socket.remoteAddress : null) ||
+    req.ip ||
+    "0.0.0.0"
+  );
 }
 
 const wechatLogin = async (req, res) => {
@@ -41,7 +43,8 @@ const wechatLogin = async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    const { code, encryptedData, iv, inviteSource } = req.body;
+    const { code, encryptedData, iv, inviteSource, platform, device_model } =
+      req.body;
     const guid = req.headers.guid;
     const clientIP = getClientIP(req);
 
@@ -123,25 +126,31 @@ const wechatLogin = async (req, res) => {
       // 检查是否需要更新guid
       if (guid && !user.guid) {
         await connection.execute(
-          "UPDATE users SET guid = ?, last_login_at = NOW(), ip = ? WHERE id = ?",
-          [guid, clientIP, user.id]
+          "UPDATE users SET guid = ?, last_login_at = NOW(), ip = ?, platform = ?, device_model = ? WHERE id = ?",
+          [guid, clientIP, platform || null, device_model || null, user.id]
         );
       } else if (!user.phone_num && phoneNumber) {
         await connection.execute(
-          "UPDATE users SET phone_num = ?, last_login_at = NOW(), ip = ? WHERE id = ?",
-          [phoneNumber, clientIP, user.id]
+          "UPDATE users SET phone_num = ?, last_login_at = NOW(), ip = ?, platform = ?, device_model = ? WHERE id = ?",
+          [
+            phoneNumber,
+            clientIP,
+            platform || null,
+            device_model || null,
+            user.id,
+          ]
         );
         user.phone_num = phoneNumber;
       } else {
         await connection.execute(
-          "UPDATE users SET last_login_at = NOW(), ip = ? WHERE id = ?",
-          [clientIP, user.id]
+          "UPDATE users SET last_login_at = NOW(), ip = ?, platform = ?, device_model = ? WHERE id = ?",
+          [clientIP, platform || null, device_model || null, user.id]
         );
       }
     } else {
       // 按 unionid 再次检索：如果有对应用户，则将当前小程序 openid 绑定到该记录并完善必要字段
       const [unionUsers] = await connection.execute(
-        "SELECT id, user_id, nickname, avatar_url, gender, phone_num, guid FROM users WHERE unionid = ? LIMIT 1",
+        "SELECT id, user_id, nickname, avatar_url, gender, phone_num, guid, platform, device_model FROM users WHERE unionid = ? LIMIT 1",
         [unionid]
       );
       if (unionUsers.length > 0) {
@@ -167,6 +176,16 @@ const wechatLogin = async (req, res) => {
         if (phoneNumber && !existed.phone_num) {
           updates.push("phone_num = ?");
           params.push(phoneNumber);
+        }
+
+        // 更新platform和device_model
+        if (platform) {
+          updates.push("platform = ?");
+          params.push(platform);
+        }
+        if (device_model) {
+          updates.push("device_model = ?");
+          params.push(device_model);
         }
 
         // 该记录可能来自服务号关注，只含 unionid；若无 user_id，则生成并补齐必要基础信息
@@ -210,8 +229,8 @@ const wechatLogin = async (req, res) => {
         // 根据gender设置默认头像URL
         const avatarUrl = getDefaultAvatarUrl(gender);
         const [insertResult] = await connection.execute(
-          `INSERT INTO users (user_id, wxid, nickname, avatar_url, gender, phone_num, unionid, last_login_at, ip, status, total_game_cnt, total_game_create, source, guid)
-           VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, 0, 0, 0, ?, ?)`,
+          `INSERT INTO users (user_id, wxid, nickname, avatar_url, gender, phone_num, unionid, last_login_at, ip, status, total_game_cnt, total_game_create, source, guid, platform, device_model)
+           VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, 0, 0, 0, ?, ?, ?, ?)`,
           [
             userId,
             openid,
@@ -223,6 +242,8 @@ const wechatLogin = async (req, res) => {
             clientIP,
             inviteSource || null,
             guid || null,
+            platform || null,
+            device_model || null,
           ]
         );
         newUserRegisterReward(connection, userId, guid, inviteSource);
