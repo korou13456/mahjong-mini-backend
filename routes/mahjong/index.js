@@ -29,6 +29,7 @@ const {
 
 const wechat = require("./wechat");
 const { getActivityStatus } = require("./activitySwitch");
+const { recordInstall } = require("./installLog");
 
 // 获取麻将房间列表
 router.get("/get-table-list", getTableList);
@@ -75,6 +76,8 @@ router.get("/score-summary", authMiddleware, getScoreSummary);
 router.get("/score-ranking", getScoreRanking);
 // 获取活动开关状态
 router.get("/activity-status", getActivityStatus);
+// 记录安装信息
+router.post("/record-install", recordInstall);
 
 // 用户协议 H5 页面
 router.get("/agreement-user", (req, res) => {
