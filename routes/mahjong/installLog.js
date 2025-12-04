@@ -2,6 +2,17 @@
 const db = require("../../config/database");
 const { extractUserIdFromToken } = require("../../utils/tokenHelpers");
 
+// 获取客户端真实IP地址
+function getClientIP(req) {
+  return req.headers['x-forwarded-for']?.split(',')[0] || 
+         req.headers['x-real-ip'] || 
+         req.connection?.remoteAddress || 
+         req.socket?.remoteAddress ||
+         (req.connection?.socket ? req.connection.socket.remoteAddress : null) ||
+         req.ip ||
+         '0.0.0.0';
+}
+
 // 记录小程序安装信息
 const recordInstall = async (req, res) => {
   const connection = await db.getConnection();
@@ -13,6 +24,7 @@ const recordInstall = async (req, res) => {
     const { install_version, current_version, device_model, platform } =
       req.body;
     const user_id = extractUserIdFromToken(req);
+    const clientIP = getClientIP(req);
 
     console.log(user_id, "user_id");
     // 参数验证 - user_id为可选
@@ -46,9 +58,10 @@ const recordInstall = async (req, res) => {
           user_id = ?, 
           current_version = ?, 
           device_model = ?,
-          platform = ?
+          platform = ?,
+          ip = ?
         WHERE guid = ?`,
-        [user_id || null, current_version, device_model, platform, guid]
+        [user_id || null, current_version, device_model, platform, clientIP, guid]
       );
 
       result = {
@@ -59,8 +72,8 @@ const recordInstall = async (req, res) => {
       // 插入新记录
       const [insertResult] = await connection.execute(
         `INSERT INTO install_logs 
-          (guid, install_version, current_version, device_model,platform, user_id) 
-        VALUES (?, ?, ?, ?, ?, ?)`,
+          (guid, install_version, current_version, device_model, platform, user_id, ip) 
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
           guid,
           install_version,
@@ -68,6 +81,7 @@ const recordInstall = async (req, res) => {
           device_model,
           platform,
           user_id || null,
+          clientIP,
         ]
       );
 
