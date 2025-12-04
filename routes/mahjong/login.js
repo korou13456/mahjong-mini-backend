@@ -25,6 +25,17 @@ function getDefaultAvatarUrl(gender) {
   return getFileUrl(filename);
 }
 
+// 获取客户端真实IP地址
+function getClientIP(req) {
+  return req.headers['x-forwarded-for']?.split(',')[0] || 
+         req.headers['x-real-ip'] || 
+         req.connection?.remoteAddress || 
+         req.socket?.remoteAddress ||
+         (req.connection?.socket ? req.connection.socket.remoteAddress : null) ||
+         req.ip ||
+         '0.0.0.0';
+}
+
 const wechatLogin = async (req, res) => {
   const connection = await db.getConnection();
   try {
@@ -32,6 +43,7 @@ const wechatLogin = async (req, res) => {
 
     const { code, encryptedData, iv, inviteSource } = req.body;
     const guid = req.headers.guid;
+    const clientIP = getClientIP(req);
 
     if (!code) {
       return res.status(400).json({ code: 400, message: "缺少登录凭证code" });
@@ -111,19 +123,19 @@ const wechatLogin = async (req, res) => {
       // 检查是否需要更新guid
       if (guid && !user.guid) {
         await connection.execute(
-          "UPDATE users SET guid = ?, last_login_at = NOW() WHERE id = ?",
-          [guid, user.id]
+          "UPDATE users SET guid = ?, last_login_at = NOW(), ip = ? WHERE id = ?",
+          [guid, clientIP, user.id]
         );
       } else if (!user.phone_num && phoneNumber) {
         await connection.execute(
-          "UPDATE users SET phone_num = ?, last_login_at = NOW() WHERE id = ?",
-          [phoneNumber, user.id]
+          "UPDATE users SET phone_num = ?, last_login_at = NOW(), ip = ? WHERE id = ?",
+          [phoneNumber, clientIP, user.id]
         );
         user.phone_num = phoneNumber;
       } else {
         await connection.execute(
-          "UPDATE users SET last_login_at = NOW() WHERE id = ?",
-          [user.id]
+          "UPDATE users SET last_login_at = NOW(), ip = ? WHERE id = ?",
+          [clientIP, user.id]
         );
       }
     } else {
@@ -142,6 +154,8 @@ const wechatLogin = async (req, res) => {
         updates.push("wxid = ?");
         params.push(openid);
         updates.push("last_login_at = NOW()");
+        updates.push("ip = ?");
+        params.push(clientIP);
 
         // 如果有guid且原记录没有，则写入
         if (guid && !existed.guid) {
@@ -196,8 +210,8 @@ const wechatLogin = async (req, res) => {
         // 根据gender设置默认头像URL
         const avatarUrl = getDefaultAvatarUrl(gender);
         const [insertResult] = await connection.execute(
-          `INSERT INTO users (user_id, wxid, nickname, avatar_url, gender, phone_num, unionid, last_login_at, status, total_game_cnt, total_game_create, source, guid)
-           VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), 0, 0, 0, ?, ?)`,
+          `INSERT INTO users (user_id, wxid, nickname, avatar_url, gender, phone_num, unionid, last_login_at, ip, status, total_game_cnt, total_game_create, source, guid)
+           VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, 0, 0, 0, ?, ?)`,
           [
             userId,
             openid,
@@ -206,6 +220,7 @@ const wechatLogin = async (req, res) => {
             gender,
             phoneNumber,
             unionid,
+            clientIP,
             inviteSource || null,
             guid || null,
           ]
