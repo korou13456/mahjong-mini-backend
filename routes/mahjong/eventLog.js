@@ -68,6 +68,18 @@ const eventLog = async (req, res) => {
       req.ip ||
       "unknown";
 
+    // 清理和验证IP字符串
+    if (clientIp && typeof clientIp === 'string') {
+      // 移除可能的二进制字符和空白
+      clientIp = clientIp.replace(/[^\d\.:a-fA-F]/g, '').trim();
+      // 如果清理后为空，设为unknown
+      if (!clientIp) {
+        clientIp = "unknown";
+      }
+    } else {
+      clientIp = "unknown";
+    }
+
     // 处理IPv6地址转换为IPv4格式
     if (clientIp === "::1" || clientIp === "::ffff:127.0.0.1") {
       clientIp = "127.0.0.1";
