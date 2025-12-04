@@ -4,6 +4,12 @@ const axios = require("axios");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { newUserRegisterReward } = require("./invitePoints");
+const { 
+  validateRequest, 
+  validateWechatId, 
+  validateGUID,
+  sanitizeString 
+} = require("../../middleware/validation");
 
 // JWT secret（已从环境变量读取）
 const JWT_SECRET = process.env.JWT_SECRET || "change_me_in_env";
@@ -41,8 +47,9 @@ const wechatLogin = async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    const { code, encryptedData, iv, inviteSource } = req.body;
-    const guid = req.headers.guid;
+    // 使用验证后的数据
+    const { code, encryptedData, iv, inviteSource } = req.validated?.body || req.body;
+    const guid = req.validated?.body?.guid || req.headers.guid;
     const clientIP = getClientIP(req);
 
     if (!code) {
@@ -286,4 +293,40 @@ async function generateUserId(connection) {
   return generateUserId(connection);
 }
 
-module.exports = wechatLogin;
+// 登录接口参数验证规则
+const loginValidation = validateRequest({
+  body: {
+    code: {
+      type: 'string',
+      required: true,
+      validate: (value) => {
+        if (!value || value.length < 10 || value.length > 100) {
+          throw new Error('code格式不正确');
+        }
+        return sanitizeString(value);
+      }
+    },
+    encryptedData: {
+      type: 'string',
+      required: false,
+      validate: (value) => value ? sanitizeString(value, { maxLength: 2000 }) : value
+    },
+    iv: {
+      type: 'string', 
+      required: false,
+      validate: (value) => value ? sanitizeString(value, { maxLength: 100 }) : value
+    },
+    inviteSource: {
+      type: 'string',
+      required: false,
+      validate: (value) => value ? sanitizeString(value, { maxLength: 100 }) : value
+    },
+    guid: {
+      type: 'string',
+      required: false,
+      validate: validateGUID
+    }
+  }
+});
+
+module.exports = { wechatLogin, loginValidation };

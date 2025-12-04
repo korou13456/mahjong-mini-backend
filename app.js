@@ -10,6 +10,12 @@ const {
 } = require("./utils/wechatVerify");
 // 统一错误处理中间件
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
+// 安全中间件
+const { 
+  securityMiddleware, 
+  rateLimit, 
+  requestSizeLimit 
+} = require("./middleware/securityMiddleware");
 
 require("dotenv").config({
   path: path.resolve(
@@ -23,6 +29,24 @@ const port = Number(process.env.PORT || 3000);
 
 // 跨域和json解析
 app.use(cors());
+
+// 全局安全中间件
+app.use(securityMiddleware);
+
+// 针对敏感接口的频率限制
+app.use('/api/mahjong/login', rateLimit({ 
+  windowMs: 15 * 60 * 1000, // 15分钟
+  max: 10, // 最多10次登录尝试
+}));
+
+app.use('/api/mahjong/record-install', rateLimit({ 
+  windowMs: 60 * 1000, // 1分钟
+  max: 5, // 最多5次安装记录
+}));
+
+// 请求大小限制
+app.use(requestSizeLimit({ maxSize: 10 * 1024 * 1024 })); // 10MB
+
 // capture raw body for signature verification
 app.use(
   express.json({

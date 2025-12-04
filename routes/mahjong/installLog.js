@@ -1,6 +1,13 @@
 // routes/mahjong/installLog.js
 const db = require("../../config/database");
 const { extractUserIdFromToken } = require("../../utils/tokenHelpers");
+const { 
+  validateRequest, 
+  validateGUID, 
+  validateVersion, 
+  validatePlatform,
+  sanitizeString 
+} = require("../../middleware/validation");
 
 // 获取客户端真实IP地址
 function getClientIP(req) {
@@ -19,10 +26,18 @@ const recordInstall = async (req, res) => {
 
   try {
     await connection.beginTransaction();
-    const guid = req.headers.guid;
 
-    const { install_version, current_version, device_model, platform } =
-      req.body;
+    // 使用验证后的数据，如果验证失败则使用原始数据（向后兼容）
+    const validated = req.validated?.body || {};
+    const guid = validated.guid || req.headers.guid;
+    
+    const { 
+      install_version, 
+      current_version, 
+      device_model, 
+      platform 
+    } = validated;
+    
     const user_id = extractUserIdFromToken(req);
     const clientIP = getClientIP(req);
 
@@ -117,6 +132,38 @@ const recordInstall = async (req, res) => {
   }
 };
 
+// 安装日志接口参数验证规则
+const installLogValidation = validateRequest({
+  body: {
+    guid: {
+      type: 'string',
+      required: true,
+      validate: validateGUID
+    },
+    install_version: {
+      type: 'string',
+      required: true,
+      validate: validateVersion
+    },
+    current_version: {
+      type: 'string',
+      required: true,
+      validate: validateVersion
+    },
+    device_model: {
+      type: 'string',
+      required: true,
+      validate: (value) => sanitizeString(value, { maxLength: 100 })
+    },
+    platform: {
+      type: 'string',
+      required: true,
+      validate: validatePlatform
+    }
+  }
+});
+
 module.exports = {
   recordInstall,
+  installLogValidation,
 };
