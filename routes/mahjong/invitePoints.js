@@ -2,6 +2,9 @@
 const db = require("../../config/database");
 const { extractUserIdFromToken } = require("../../utils/tokenHelpers");
 
+// 来源黑名单
+const SOURCE_BLACKLIST = [765617819819];
+
 // 通用查询一条
 async function queryOne(conn, sql, params) {
   const [rows] = await conn.query(sql, params);
@@ -18,6 +21,19 @@ async function recordPointLog(
   source,
   ifRepeat = true
 ) {
+  // 检查来源黑名单
+  if (SOURCE_BLACKLIST.includes(source)) {
+    console.warn("recordPointLog: 来源在黑名单中", {
+      type,
+      score,
+      guid,
+      user_id,
+      source,
+      ifRepeat,
+    });
+    return { success: false, message: "来源在黑名单中" };
+  }
+
   if (!user_id && user_id !== null) {
     console.warn("recordPointLog: 用户ID为空", {
       type,
