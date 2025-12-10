@@ -8,7 +8,7 @@ const getActivityStatusApi = async (req, res) => {
     res.json({
       success: true,
       data: {
-        activity: true,
+        activity: false,
       },
     });
   } catch (error) {

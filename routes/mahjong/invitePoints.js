@@ -21,6 +21,7 @@ async function recordPointLog(
   source,
   ifRepeat = true
 ) {
+  return;
   if (!user_id && user_id !== null) {
     console.warn("recordPointLog: 用户ID为空", {
       type,
