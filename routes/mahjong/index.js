@@ -30,6 +30,7 @@ const {
 const wechat = require("./wechat");
 const { getActivityStatus } = require("./activitySwitch");
 const { recordInstall } = require("./installLog");
+const { sendMessage, getMessages, deleteMessage } = require("./message");
 
 // 获取麻将房间列表
 router.get("/get-table-list", getTableList);
@@ -78,6 +79,12 @@ router.get("/score-ranking", getScoreRanking);
 router.get("/activity-status", getActivityStatus);
 // 记录安装信息
 router.post("/record-install", recordInstall);
+// 发送消息
+router.post("/send-message", authMiddleware, sendMessage);
+// 获取消息列表
+router.get("/get-messages", getMessages);
+// 删除消息
+router.post("/delete-message", authMiddleware, deleteMessage);
 
 // 用户协议 H5 页面
 router.get("/agreement-user", (req, res) => {
