@@ -45,6 +45,9 @@ app.use("/uploads", express.static(uploadDir));
 // 挂载上传路由
 app.use("/api/upload", require("./routes/upload"));
 
+// 挂载商业相关路由
+app.use("/api/commerce", require("./routes/commerce"));
+
 // 挂载麻将相关路由
 // 启用微信 API 安全校验（仅生产环境有效，且当请求头存在时生效）
 app.use(require("./middleware/wechatApiSecurity")());
