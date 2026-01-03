@@ -191,15 +191,22 @@ function updateInputs() {
   const category = document.getElementById("category").value;
   const extraInputs = document.getElementById("extraInputs");
   const tshirtInputs = document.getElementById("tshirtInputs");
+  const blanketInputs = document.getElementById("blanketInputs");
   const beachTowelInputs = document.getElementById("beachTowelInputs");
 
   if (priceType === "fixed") {
     extraInputs.style.display = "block";
     if (category === "tshirt") {
       tshirtInputs.style.display = "block";
+      blanketInputs.style.display = "none";
+      beachTowelInputs.style.display = "none";
+    } else if (category === "blanket") {
+      tshirtInputs.style.display = "none";
+      blanketInputs.style.display = "block";
       beachTowelInputs.style.display = "none";
     } else if (category === "beach_towel") {
       tshirtInputs.style.display = "none";
+      blanketInputs.style.display = "none";
       beachTowelInputs.style.display = "block";
     } else {
       extraInputs.style.display = "none";
@@ -254,6 +261,17 @@ function getConfig() {
     config.stockQuantity = parseInt(
       document.getElementById("stockQuantity").value
     );
+  } else if (category === "blanket") {
+    config.activityDiscountBlanket = parseFloat(
+      document.getElementById("activityDiscountBlanket").value
+    );
+    config.price3040 = parseFloat(document.getElementById("price3040").value);
+    config.price4050 = parseFloat(document.getElementById("price4050").value);
+    config.price5060 = parseFloat(document.getElementById("price5060").value);
+    config.price6080 = parseFloat(document.getElementById("price6080").value);
+    config.stockQuantity = parseInt(
+      document.getElementById("stockQuantityBlanket").value
+    );
   } else if (category === "beach_towel") {
     config.activityDiscountBeach = parseFloat(
       document.getElementById("activityDiscountBeach").value
@@ -275,6 +293,18 @@ function validateConfig(category, config, exportBtn) {
     if (
       isNaN(config.activityDiscount) ||
       isNaN(config.fixedPrice) ||
+      isNaN(config.stockQuantity)
+    ) {
+      showError("请填写所有必填项");
+      return false;
+    }
+  } else if (category === "blanket") {
+    if (
+      isNaN(config.activityDiscountBlanket) ||
+      isNaN(config.price3040) ||
+      isNaN(config.price4050) ||
+      isNaN(config.price5060) ||
+      isNaN(config.price6080) ||
       isNaN(config.stockQuantity)
     ) {
       showError("请填写所有必填项");
@@ -315,18 +345,20 @@ function processData(category, config) {
     const goodsId = row[5] || "";
     const condition1 = getCondition1(row, category, config);
     const condition2 = getCondition2(row, category, config);
-
+    console.log(condition1, condition2, goodsId, "!====>>>1231");
     if (!condition1 || !condition2) {
       filteredGoodsIds.add(goodsId);
     }
   });
+
+  console.log(filteredGoodsIds, "!====>>filteredGoodsIds");
 
   // 第二遍生成数据
   let tempData = rows
     .slice(1)
     .filter((row) => !filteredGoodsIds.has(row[5] || ""));
 
-  if (category === "beach_towel") {
+  if (category === "blanket" || category === "beach_towel") {
     tempData = tempData.filter((row) => row[5] !== undefined && row[5] !== "");
   }
 
@@ -344,17 +376,34 @@ function getCondition1(row, category, config) {
 
   if (category === "tshirt") {
     return originalPrice * config.activityDiscount > config.fixedPrice;
+  } else if (category === "blanket") {
+    const variant = (row[7] || "").trim();
+    let calculatedPrice;
+    if (/30\*40/.test(variant)) {
+      calculatedPrice = config.price3040;
+    } else if (/40\*50/.test(variant)) {
+      calculatedPrice = config.price4050;
+    } else if (/50\*60/.test(variant)) {
+      calculatedPrice = config.price5060;
+    } else if (/60\*80/.test(variant)) {
+      calculatedPrice = config.price6080;
+    }
+    return calculatedPrice
+      ? originalPrice * config.activityDiscountBlanket > calculatedPrice
+      : false;
   } else if (category === "beach_towel") {
     const variant = (row[7] || "").trim();
     let calculatedPrice;
-    if (variant === "32*52inch") {
+    if (/32\*52/.test(variant)) {
       calculatedPrice = config.price3252;
-    } else if (variant === "30*60inch") {
+    } else if (/30\*60/.test(variant)) {
       calculatedPrice = config.price3060;
-    } else if (variant === "30*70inch") {
+    } else if (/30\*70/.test(variant)) {
       calculatedPrice = config.price3070;
     }
-    return originalPrice * config.activityDiscountBeach > calculatedPrice;
+    return calculatedPrice
+      ? originalPrice * config.activityDiscountBeach > calculatedPrice
+      : false;
   }
   return false;
 }
@@ -365,17 +414,30 @@ function getCondition2(row, category, config) {
 
   if (category === "tshirt") {
     return originalPrice * 0.1 < config.fixedPrice;
+  } else if (category === "blanket") {
+    const variant = (row[7] || "").trim();
+    let calculatedPrice;
+    if (/30\*40/.test(variant)) {
+      calculatedPrice = config.price3040;
+    } else if (/40\*50/.test(variant)) {
+      calculatedPrice = config.price4050;
+    } else if (/50\*60/.test(variant)) {
+      calculatedPrice = config.price5060;
+    } else if (/60\*80/.test(variant)) {
+      calculatedPrice = config.price6080;
+    }
+    return calculatedPrice ? originalPrice * 0.1 < calculatedPrice : false;
   } else if (category === "beach_towel") {
     const variant = (row[7] || "").trim();
     let calculatedPrice;
-    if (variant === "32*52inch") {
+    if (/32\*52/.test(variant)) {
       calculatedPrice = config.price3252;
-    } else if (variant === "30*60inch") {
+    } else if (/30\*60/.test(variant)) {
       calculatedPrice = config.price3060;
-    } else if (variant === "30*70inch") {
+    } else if (/30\*70/.test(variant)) {
       calculatedPrice = config.price3070;
     }
-    return originalPrice * 0.1 < calculatedPrice;
+    return calculatedPrice ? originalPrice * 0.1 < calculatedPrice : false;
   }
   return false;
 }
@@ -390,13 +452,24 @@ function calculatePrice(row, category, config) {
     } else {
       return originalPrice * 0.1;
     }
+  } else if (category === "blanket") {
+    const variant = (row[7] || "").trim();
+    if (/30\*40/.test(variant)) {
+      return config.price3040;
+    } else if (/40\*50/.test(variant)) {
+      return config.price4050;
+    } else if (/50\*60/.test(variant)) {
+      return config.price5060;
+    } else if (/60\*80/.test(variant)) {
+      return config.price6080;
+    }
   } else if (category === "beach_towel") {
     const variant = (row[7] || "").trim();
-    if (variant === "32*52inch") {
+    if (/32\*52/.test(variant)) {
       return config.price3252;
-    } else if (variant === "30*60inch") {
+    } else if (/30\*60/.test(variant)) {
       return config.price3060;
-    } else if (variant === "30*70inch") {
+    } else if (/30\*70/.test(variant)) {
       return config.price3070;
     }
   }

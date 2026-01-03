@@ -76,48 +76,74 @@
                     </select>
                 </div>
 
-                <div id="extraInputs" style="display: none;">
-                    <div id="tshirtInputs">
-                        <div class="form-group">
-                            <label>活动折扣</label>
-                            <input type="number" id="activityDiscount" placeholder="输入活动折扣" step="0.01">
+                    <div id="extraInputs" style="display: none;">
+                        <div id="tshirtInputs">
+                            <div class="form-group">
+                                <label>活动折扣</label>
+                                <input type="number" id="activityDiscount" placeholder="输入活动折扣" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>固定价格</label>
+                                <input type="number" id="fixedPrice" placeholder="输入固定价格" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>库存数量</label>
+                                <input type="number" id="stockQuantity" placeholder="输入库存数量">
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>固定价格</label>
-                            <input type="number" id="fixedPrice" placeholder="输入固定价格" step="0.01">
+                        <div id="blanketInputs" style="display: none;">
+                            <div class="form-group">
+                                <label>活动折扣</label>
+                                <input type="number" id="activityDiscountBlanket" placeholder="输入活动折扣" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>30*40价格</label>
+                                <input type="number" id="price3040" placeholder="输入30*40价格" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>40*50价格</label>
+                                <input type="number" id="price4050" placeholder="输入40*50价格" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>50*60价格</label>
+                                <input type="number" id="price5060" placeholder="输入50*60价格" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>60*80价格</label>
+                                <input type="number" id="price6080" placeholder="输入60*80价格" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>库存数量</label>
+                                <input type="number" id="stockQuantityBlanket" placeholder="输入库存数量">
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>库存数量</label>
-                            <input type="number" id="stockQuantity" placeholder="输入库存数量">
+                        <div id="beachTowelInputs" style="display: none;">
+                            <div class="form-group">
+                                <label>活动折扣</label>
+                                <input type="number" id="activityDiscountBeach" placeholder="输入活动折扣" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>32*52价格</label>
+                                <input type="number" id="price3252" placeholder="输入32*52价格" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>30*60价格</label>
+                                <input type="number" id="price3060" placeholder="输入30*60价格" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>30*70价格</label>
+                                <input type="number" id="price3070" placeholder="输入30*70价格" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>库存数量</label>
+                                <input type="number" id="stockQuantityBeach" placeholder="输入库存数量">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label></label>
+                            <button class="btn-export" onclick="exportData(event.target)">导出表格</button>
                         </div>
                     </div>
-                    <div id="beachTowelInputs" style="display: none;">
-                        <div class="form-group">
-                            <label>活动折扣</label>
-                            <input type="number" id="activityDiscountBeach" placeholder="输入活动折扣" step="0.01">
-                        </div>
-                        <div class="form-group">
-                            <label>32*52价格</label>
-                            <input type="number" id="price3252" placeholder="输入32*52价格" step="0.01">
-                        </div>
-                        <div class="form-group">
-                            <label>30*60价格</label>
-                            <input type="number" id="price3060" placeholder="输入30*60价格" step="0.01">
-                        </div>
-                        <div class="form-group">
-                            <label>30*70价格</label>
-                            <input type="number" id="price3070" placeholder="输入30*70价格" step="0.01">
-                        </div>
-                        <div class="form-group">
-                            <label>库存数量</label>
-                            <input type="number" id="stockQuantityBeach" placeholder="输入库存数量">
-                        </div>
-                    </div>
-                    <div class="form-group" style="margin-top: 16px;">
-                        <label></label>
-                        <button class="btn-export" onclick="exportData(event.target)">导出表格</button>
-                    </div>
-                </div>
             </div>
 
             <div class="sheet-tabs" id="sheetTabs"></div>
