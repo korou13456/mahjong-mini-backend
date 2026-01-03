@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel 表格解析工具</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="table-processor.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Excel 表格解析工具</h1>
+            <p>上传 .xlsx 或 .xls 文件，快速解析表格数据</p>
+        </div>
+
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">点击或拖拽文件到此处上传</div>
+                <div class="upload-hint">支持 .xlsx、.xls 格式，最大 10MB</div>
+            </div>
+            <input type="file" id="fileInput" accept=".xlsx,.xls">
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p>正在解析文件...</p>
+        </div>
+
+        <div class="result-section" id="resultSection">
+            <div class="result-header">
+                <h2>📋 解析结果</h2>
+                <button class="btn-close" onclick="reset()">重新上传</button>
+            </div>
+
+            <div class="file-info">
+                <h3>文件信息</h3>
+                <p id="fileInfoText"></p>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <h3>工作表数量</h3>
+                    <p id="sheetCount">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>当前表行数</h3>
+                    <p id="rowCount">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>当前表列数</h3>
+                    <p id="columnCount">0</p>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <h3>配置项</h3>
+                <div class="form-group">
+                    <label>价格类型</label>
+                    <select id="priceType" onchange="updateInputs()">
+                        <option value="discount">折扣</option>
+                        <option value="fixed">固定价格</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>品类</label>
+                    <select id="category" onchange="updateInputs()">
+                        <option value="tshirt">T恤/帽子/鼠标垫（单价格商品）</option>
+                        <option value="blanket">毛毯</option>
+                        <option value="beach_towel">沙滩巾</option>
+                    </select>
+                </div>
+
+                <div id="extraInputs" style="display: none;">
+                    <div id="tshirtInputs">
+                        <div class="form-group">
+                            <label>活动折扣</label>
+                            <input type="number" id="activityDiscount" placeholder="输入活动折扣" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>固定价格</label>
+                            <input type="number" id="fixedPrice" placeholder="输入固定价格" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>库存数量</label>
+                            <input type="number" id="stockQuantity" placeholder="输入库存数量">
+                        </div>
+                    </div>
+                    <div id="beachTowelInputs" style="display: none;">
+                        <div class="form-group">
+                            <label>活动折扣</label>
+                            <input type="number" id="activityDiscountBeach" placeholder="输入活动折扣" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>32*52价格</label>
+                            <input type="number" id="price3252" placeholder="输入32*52价格" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>30*60价格</label>
+                            <input type="number" id="price3060" placeholder="输入30*60价格" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>30*70价格</label>
+                            <input type="number" id="price3070" placeholder="输入30*70价格" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>库存数量</label>
+                            <input type="number" id="stockQuantityBeach" placeholder="输入库存数量">
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-top: 16px;">
+                        <label></label>
+                        <button class="btn-export" onclick="exportData(event.target)">导出表格</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sheet-tabs" id="sheetTabs"></div>
+
+            <div class="table-container">
+                <table id="dataTable"></table>
+            </div>
+        </div>
+    </div>
+
+    <script src="table-processor.js"></script>
+</body>
+
+</html>
