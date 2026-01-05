@@ -54,17 +54,28 @@ async function handleFile(file) {
   hideError();
 
   try {
+    // 使用 setTimeout 让 UI 有机会渲染
+    await new Promise(resolve => setTimeout(resolve, 10));
+
     const data = await file.arrayBuffer();
+
+    // 分步解析，避免卡顿
+    await new Promise(resolve => setTimeout(resolve, 10));
+
     const workbook = XLSX.read(data, { type: "array" });
     const result = parseWorkbook(workbook, file);
 
     currentData = result.data;
     currentSheetIndex = 0;
-    displayResult(result);
+
+    // 使用 setTimeout 异步显示结果
+    setTimeout(() => {
+      displayResult(result);
+      hideLoading();
+    }, 10);
   } catch (error) {
-    showError("解析失败: " + error.message);
-  } finally {
     hideLoading();
+    showError("解析失败: " + error.message);
   }
 }
 
@@ -174,15 +185,8 @@ function displaySheetData(index) {
     return;
   }
 
-  let html = "";
-  sheet.data.forEach((row, rowIndex) => {
-    const cells = row
-      .map((cell) => `<td>${cell !== undefined ? cell : ""}</td>`)
-      .join("");
-    html += `<tr>${cells}</tr>`;
-  });
-
-  table.innerHTML = html;
+  // 不再渲染数据，只显示提示
+  table.innerHTML = `<tr><td>数据已加载，共 ${sheet.rowCount} 行，请直接进行导出操作</td></tr>`;
 }
 
 // 更新输入框显示
@@ -225,15 +229,34 @@ async function exportData(exportBtn) {
   exportBtn.textContent = "处理中...";
 
   try {
+    // 给 UI 更新的机会
+    await new Promise(resolve => setTimeout(resolve, 10));
+
     const { category, config } = getConfig();
     if (!validateConfig(category, config, exportBtn)) return;
     if (!validateData(exportBtn)) return;
 
+    // 分步处理大数据
+    await new Promise(resolve => setTimeout(resolve, 10));
+
     const tempData = processData(category, config);
+
+    await new Promise(resolve => setTimeout(resolve, 10));
+
     const newData = generateFinalData(tempData, config.stockQuantity);
     const merges = generateMerges(tempData);
 
-    await exportToTemplate(newData, merges);
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    // 检查是否需要分表
+    const uniqueGoodsIds = new Set(tempData.map((item) => item.goodsId));
+    const needsSplit = uniqueGoodsIds.size > 2000 || newData.length > 1500;
+
+    if (needsSplit) {
+      await exportSplitSheets(newData, merges);
+    } else {
+      await exportToTemplate(newData, merges);
+    }
 
     console.log("总耗时:", (performance.now() - startTime).toFixed(2), "ms");
   } catch (error) {
@@ -559,6 +582,138 @@ async function exportToTemplate(newData, merges) {
 
   // 导出文件
   XLSX.writeFile(workbook, `${originalFileName}（已处理）.xlsx`);
+}
+
+// 分表导出
+async function exportSplitSheets(newData, originalMerges) {
+  const templateLoadStart = performance.now();
+
+  const response = await fetch(`${BASE_URL}/api/commerce/template`);
+  if (!response.ok) {
+    throw new Error(`加载模板失败 (${response.status})`);
+  }
+
+  const data = await response.arrayBuffer();
+  console.log(
+    "模板加载时间:",
+    (performance.now() - templateLoadStart).toFixed(2),
+    "ms"
+  );
+
+  const templateWorkbook = XLSX.read(data, { type: "array" });
+  const templateSheet = templateWorkbook.Sheets["Template"];
+  const templateData = XLSX.utils.sheet_to_json(templateSheet, { header: 1 });
+
+  // 分表逻辑：按商品ID分组
+  const goodsIdGroups = {};
+  newData.forEach((row, index) => {
+    const goodsId = row[0];
+    if (!goodsIdGroups[goodsId]) {
+      goodsIdGroups[goodsId] = [];
+    }
+    goodsIdGroups[goodsId].push({ data: row, index });
+  });
+
+  // 生成分表列表
+  const files = [];
+  let currentFileData = [];
+  let currentFileMerges = [];
+  let currentFileUniqueGoods = new Set();
+  let fileNumber = 1;
+
+  Object.keys(goodsIdGroups).forEach((goodsId) => {
+    const items = goodsIdGroups[goodsId];
+
+    // 检查是否需要新建分表文件
+    const wouldExceedGoodsLimit = currentFileUniqueGoods.size + 1 > 2000;
+    const wouldExceedRowLimit = currentFileData.length + items.length > 30000;
+
+    if (
+      (wouldExceedGoodsLimit || wouldExceedRowLimit) &&
+      currentFileData.length > 0
+    ) {
+      // 保存当前分表文件
+      files.push({
+        data: currentFileData,
+        merges: currentFileMerges,
+        number: fileNumber,
+      });
+      fileNumber++;
+
+      // 重置
+      currentFileData = [];
+      currentFileMerges = [];
+      currentFileUniqueGoods = new Set();
+    }
+
+    // 添加商品到当前分表文件
+    const startIndex = currentFileData.length;
+    items.forEach((item, itemIndex) => {
+      const { data: rowData, index: originalIndex } = item;
+      currentFileData.push(rowData);
+    });
+
+    // 检查是否需要合并单元格（商品有多个SKU）
+    if (items.length > 1) {
+      currentFileMerges.push({
+        s: { r: startIndex + 2, c: 3 },
+        e: { r: startIndex + items.length - 1 + 2, c: 3 },
+      });
+    }
+
+    currentFileUniqueGoods.add(goodsId);
+  });
+
+  // 添加最后一个分表文件
+  if (currentFileData.length > 0) {
+    files.push({
+      data: currentFileData,
+      merges: currentFileMerges,
+      number: fileNumber,
+    });
+  }
+
+    // 为每个分表生成独立文件（分步处理，避免卡顿）
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+
+    // 给 UI 更新的机会
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    // 创建新工作簿
+    const workbook = XLSX.utils.book_new();
+
+    // 保留模板的前两个工作表
+    workbook.Sheets["Template Usage Guide"] =
+      templateWorkbook.Sheets["Template Usage Guide"];
+    workbook.Sheets["Data definition"] =
+      templateWorkbook.Sheets["Data definition"];
+
+    // 创建Template工作表
+    const exportData = [templateData[0], templateData[1], ...file.data];
+    const ws = XLSX.utils.aoa_to_sheet(exportData);
+    if (file.merges.length > 0) {
+      ws["!merges"] = file.merges;
+    }
+    workbook.Sheets["Template"] = ws;
+
+    // 更新工作表名称列表
+    workbook.SheetNames = [
+      "Template Usage Guide",
+      "Data definition",
+      "Template",
+    ];
+
+    // 导出文件
+    XLSX.writeFile(
+      workbook,
+      `${originalFileName}（已处理-第${file.number}部分）.xlsx`
+    );
+
+    console.log(`第 ${file.number} 部分导出完成`);
+  }
+
+  console.log(`数据已分为 ${files.length} 个独立文件`);
 }
 
 // UI 工具函数
