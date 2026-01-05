@@ -16,7 +16,7 @@
             <p>上传 .xlsx 或 .xls 文件，快速解析表格数据</p>
         </div>
 
-        <div class="upload-section">
+        <div class="upload-section" id="uploadSection">
             <div class="upload-area" id="uploadArea">
                 <div class="upload-icon">📁</div>
                 <div class="upload-text">点击或拖拽文件到此处上传</div>
@@ -63,6 +63,7 @@
                 <div class="form-group">
                     <label>价格类型</label>
                     <select id="priceType" onchange="updateInputs()">
+                        <option value="">请选择</option>
                         <option value="discount">折扣</option>
                         <option value="fixed">固定价格</option>
                     </select>
@@ -70,10 +71,18 @@
                 <div class="form-group">
                     <label>品类</label>
                     <select id="category" onchange="updateInputs()">
+                        <option value="">请选择</option>
                         <option value="tshirt">T恤/帽子/鼠标垫（单价格商品）</option>
                         <option value="blanket">毛毯</option>
                         <option value="beach_towel">沙滩巾</option>
                     </select>
+                </div>
+                <div class="form-group">
+                    <label></label>
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="saveConfig" style="margin-right: 8px;">
+                        记录价格和库存数量
+                    </label>
                 </div>
 
                     <div id="extraInputs" style="display: none;">

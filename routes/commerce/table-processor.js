@@ -9,6 +9,7 @@ let originalFileName = "";
 // DOM 元素引用
 const uploadArea = document.getElementById("uploadArea");
 const fileInput = document.getElementById("fileInput");
+const uploadSection = document.getElementById("uploadSection");
 const resultSection = document.getElementById("resultSection");
 const loading = document.getElementById("loading");
 const errorMessage = document.getElementById("errorMessage");
@@ -52,6 +53,7 @@ async function handleFile(file) {
   showLoading();
   hideResult();
   hideError();
+  hideUploadSection();
 
   try {
     // 使用 setTimeout 让 UI 有机会渲染
@@ -218,6 +220,58 @@ function updateInputs() {
   } else {
     extraInputs.style.display = "none";
   }
+
+  // 加载保存的配置
+  loadSavedConfig(category);
+}
+
+// 加载保存的配置
+function loadSavedConfig(category) {
+  if (!category) {
+    document.getElementById('saveConfig').checked = false;
+    return;
+  }
+
+  const savedConfig = JSON.parse(localStorage.getItem('priceConfig') || '{}');
+  const config = savedConfig[category];
+
+  // 如果有保存的配置，自动勾选"记录价格和库存数量"
+  if (config) {
+    document.getElementById('saveConfig').checked = true;
+
+    if (category === 'tshirt') {
+      document.getElementById('activityDiscount').value = config.activityDiscount || '';
+      document.getElementById('fixedPrice').value = config.fixedPrice || '';
+      document.getElementById('stockQuantity').value = config.stockQuantity || '';
+    } else if (category === 'blanket') {
+      document.getElementById('activityDiscountBlanket').value = config.activityDiscountBlanket || '';
+      document.getElementById('price3040').value = config.price3040 || '';
+      document.getElementById('price4050').value = config.price4050 || '';
+      document.getElementById('price5060').value = config.price5060 || '';
+      document.getElementById('price6080').value = config.price6080 || '';
+      document.getElementById('stockQuantityBlanket').value = config.stockQuantity || '';
+    } else if (category === 'beach_towel') {
+      document.getElementById('activityDiscountBeach').value = config.activityDiscountBeach || '';
+      document.getElementById('price3252').value = config.price3252 || '';
+      document.getElementById('price3060').value = config.price3060 || '';
+      document.getElementById('price3070').value = config.price3070 || '';
+      document.getElementById('stockQuantityBeach').value = config.stockQuantity || '';
+    }
+  } else {
+    document.getElementById('saveConfig').checked = false;
+  }
+}
+
+// 保存配置
+function saveCurrentConfig(category, config) {
+  if (!category) return;
+
+  const saveConfigCheckbox = document.getElementById('saveConfig');
+  if (!saveConfigCheckbox.checked) return;
+
+  const savedConfig = JSON.parse(localStorage.getItem('priceConfig') || '{}');
+  savedConfig[category] = config;
+  localStorage.setItem('priceConfig', JSON.stringify(savedConfig));
 }
 
 // 导出数据
@@ -235,6 +289,9 @@ async function exportData(exportBtn) {
     const { category, config } = getConfig();
     if (!validateConfig(category, config, exportBtn)) return;
     if (!validateData(exportBtn)) return;
+
+    // 保存配置
+    saveCurrentConfig(category, config);
 
     // 分步处理大数据
     await new Promise(resolve => setTimeout(resolve, 10));
@@ -733,6 +790,14 @@ function hideResult() {
   resultSection.classList.remove("active");
 }
 
+function hideUploadSection() {
+  uploadSection.style.display = "none";
+}
+
+function showUploadSection() {
+  uploadSection.style.display = "block";
+}
+
 function showError(message) {
   errorMessage.textContent = "❌ " + message;
   errorMessage.classList.add("active");
@@ -745,11 +810,31 @@ function hideError() {
 // 重置
 function reset() {
   hideResult();
+  showUploadSection();
   hideError();
   fileInput.value = "";
   currentData = null;
   currentSheetIndex = 0;
   document.getElementById("extraInputs").style.display = "none";
+  document.getElementById("saveConfig").checked = false;
+
+  // 重置所有输入框
+  document.getElementById("priceType").value = "";
+  document.getElementById("category").value = "";
+  document.getElementById("activityDiscount").value = "";
+  document.getElementById("fixedPrice").value = "";
+  document.getElementById("stockQuantity").value = "";
+  document.getElementById("activityDiscountBlanket").value = "";
+  document.getElementById("price3040").value = "";
+  document.getElementById("price4050").value = "";
+  document.getElementById("price5060").value = "";
+  document.getElementById("price6080").value = "";
+  document.getElementById("stockQuantityBlanket").value = "";
+  document.getElementById("activityDiscountBeach").value = "";
+  document.getElementById("price3252").value = "";
+  document.getElementById("price3060").value = "";
+  document.getElementById("price3070").value = "";
+  document.getElementById("stockQuantityBeach").value = "";
 }
 
 // 页面加载完成后初始化
