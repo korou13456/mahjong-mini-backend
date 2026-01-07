@@ -2,8 +2,8 @@
 module.exports = {
   apps: [
     {
-      name: "scheduler",
-      script: "./scripts/scheduler/scheduler.js",
+      name: "sales-aggregate",
+      script: "./scripts/sales-aggregate/index.js",
       instances: 1,
       autorestart: true,
       watch: false,
@@ -11,9 +11,9 @@ module.exports = {
       env: {
         NODE_ENV: "production",
       },
-      error_file: "./scripts/logs/scheduler-error.log",
-      out_file: "./scripts/logs/scheduler-out.log",
-      log_file: "./scripts/logs/scheduler-combined.log",
+      error_file: "./logs/sales-aggregate-error.log",
+      out_file: "./logs/sales-aggregate-out.log",
+      log_file: "./logs/sales-aggregate-combined.log",
       time: true,
     },
   ],
