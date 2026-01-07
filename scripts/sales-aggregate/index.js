@@ -1,6 +1,10 @@
+const nodeEnv = process.env.NODE_ENV || "development";
+const envFile = nodeEnv === "production" ? ".env.production" : ".env";
+
 require("dotenv").config({
-  path: require("path").resolve(process.cwd(), ".env"),
+  path: require("path").resolve(process.cwd(), envFile),
 });
+console.log(`加载环境配置文件: ${envFile}`);
 const cron = require("node-cron");
 const db = require("../../config/database");
 
