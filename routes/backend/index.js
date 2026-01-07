@@ -25,6 +25,8 @@ router.post(
 );
 // 获取运营日报数据
 router.get("/sales-daily", backendAuth, require("./get-sales-daily"));
+// 获取运营周报数据
+router.get("/sales-weekly", backendAuth, require("./get-sales-weekly"));
 
 // 其他后台接口可以继续添加
 // router.get('/users', backendAuth, require('./users'));

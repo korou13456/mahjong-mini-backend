@@ -11,6 +11,8 @@
     "scheduler:prod": "NODE_ENV=production node scripts/scheduler/scheduler.js",
     "sales-aggregate": "node scripts/sales-aggregate/index.js",
     "sales-aggregate:prod": "NODE_ENV=production node scripts/sales-aggregate/index.js",
+    "sales-weekly-aggregate": "node scripts/sales-weekly-aggregate/index.js",
+    "sales-weekly-aggregate:prod": "NODE_ENV=production node scripts/sales-weekly-aggregate/index.js",
     "pm2:start": "pm2 start ecosystem.config.js",
     "pm2:stop": "pm2 stop ecosystem.config.js",
     "pm2:restart": "pm2 restart ecosystem.config.js",
