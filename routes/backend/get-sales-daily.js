@@ -9,7 +9,8 @@ async function getSalesDaily(req, res) {
     const {
       department,
       staff_name,
-      report_date,
+      start_date,
+      end_date,
       category,
       specification,
       page = 1,
@@ -21,21 +22,24 @@ async function getSalesDaily(req, res) {
     const pageNum = Math.max(parseInt(page) || 1, 1);
     const offset = (pageNum - 1) * pageSize;
 
-    // 处理日期范围，默认15天，最长60天
-    let dateRange = 15;
-    if (report_date) {
-      dateRange = parseInt(report_date);
-      if (dateRange < 1) dateRange = 1;
-      if (dateRange > 60) dateRange = 60;
+    // 处理日期范围，如果未提供则默认最近15天，最长60天
+    let startDate, endDate;
+
+    if (start_date && end_date) {
+      startDate = new Date(start_date);
+      endDate = new Date(end_date);
+    } else {
+      endDate = new Date();
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - 15); // 默认最近15天
     }
 
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - dateRange);
     const startDateStr = startDate.toISOString().split("T")[0];
+    const endDateStr = endDate.toISOString().split("T")[0];
 
     // 构建 WHERE 条件
-    const conditions = [`report_date >= ?`];
-    const params = [startDateStr];
+    const conditions = [`report_date >= ?`, `report_date <= ?`];
+    const params = [startDateStr, endDateStr];
 
     // 处理数组参数，支持数组格式或JSON格式
     const processArrayParam = (param, fieldName) => {
