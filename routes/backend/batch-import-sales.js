@@ -22,63 +22,86 @@ async function batchImportSales(req, res) {
 
     await connection.beginTransaction();
 
-    // 逐条处理，先检查是否存在，存在则更新，不存在则插入
-    for (const item of data) {
-      const {
-        reportDate,
-        category,
-        specification,
-        department,
-        staffName,
-        orderNo,
-        salesVolume,
-        salesAmount,
-        shippingCost,
-        platformSubsidy,
-        returnLoss
-      } = item;
-
-      // 检查订单号是否已存在
-      const [existing] = await connection.query(
-        'SELECT id FROM sales_report WHERE order_no = ? LIMIT 1',
-        [orderNo]
+    // 批量查询已存在的订单号
+    const orderNos = data.map(item => item.orderNo).filter(orderNo => orderNo);
+    if (orderNos.length > 0) {
+      const [existingOrders] = await connection.query(
+        'SELECT id, order_no FROM sales_report WHERE order_no IN (?)',
+        [orderNos]
       );
+      
+      const existingOrderMap = new Map();
+      existingOrders.forEach(row => {
+        existingOrderMap.set(row.order_no, row.id);
+      });
 
-      if (existing.length > 0) {
-        // 更新已存在的记录
-        await connection.query(
-          `UPDATE sales_report SET
-           report_date = ?,
-           category = ?,
-           specification = ?,
-           department = ?,
-           staff_name = ?,
-           sales_volume = ?,
-           sales_amount = ?,
-           shipping_cost = ?,
-           platform_subsidy = ?,
-           return_loss = ?,
-           updated_at = CURRENT_TIMESTAMP
-           WHERE order_no = ?`,
-          [
+      // 分离需要更新和插入的数据
+      const updates = [];
+      const inserts = [];
+
+      for (const item of data) {
+        const {
+          reportDate,
+          category,
+          specification,
+          department,
+          staffName,
+          orderNo,
+          salesVolume,
+          salesAmount,
+          shippingCost,
+          platformSubsidy,
+          returnLoss
+        } = item;
+
+        if (orderNo && existingOrderMap.has(orderNo)) {
+          // 需要更新
+          updates.push([
             reportDate, category, specification, department, staffName,
             salesVolume || 0, salesAmount || 0, shippingCost || 0,
             platformSubsidy || 0, returnLoss || 0,
             orderNo
-          ]
-        );
-      } else {
-        // 插入新记录
-        await connection.query(
-          `INSERT INTO sales_report
-           (report_date, category, specification, department, staff_name, order_no,
-            sales_volume, sales_amount, shipping_cost, platform_subsidy, return_loss)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
+          ]);
+        } else {
+          // 需要插入
+          inserts.push([
             reportDate, category, specification, department, staffName, orderNo,
             salesVolume || 0, salesAmount || 0, shippingCost || 0,
             platformSubsidy || 0, returnLoss || 0
-          ]
+          ]);
+        }
+      }
+
+      // 批量更新
+      if (updates.length > 0) {
+        for (const updateData of updates) {
+          await connection.query(
+            `UPDATE sales_report SET
+               report_date = ?,
+               category = ?,
+               specification = ?,
+               department = ?,
+               staff_name = ?,
+               sales_volume = ?,
+               sales_amount = ?,
+               shipping_cost = ?,
+               platform_subsidy = ?,
+               return_loss = ?,
+               updated_at = CURRENT_TIMESTAMP
+               WHERE order_no = ?`,
+            updateData
+          );
+        }
+      }
+
+      // 批量插入
+      if (inserts.length > 0) {
+        await connection.query(
+          `INSERT INTO sales_report
+             (report_date, category, specification, department, staff_name, order_no,
+              sales_volume, sales_amount, shipping_cost, platform_subsidy, return_loss)
+             VALUES ?`,
+          [inserts]
         );
       }
     }
