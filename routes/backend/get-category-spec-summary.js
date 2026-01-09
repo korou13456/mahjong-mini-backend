@@ -131,13 +131,32 @@ async function getCategorySpecSummary(req, res) {
     const endDateStr = endDate.toISOString().split("T")[0];
 
     // 并行查询公司底价、部门底价和个人数据
-    const [companyQueryResult, deptQueryResult, personalQueryResult] = await Promise.all([
-      db.query(buildQuery(category, startDateStr, endDateStr, {}).sql, buildQuery(category, startDateStr, endDateStr, {}).params),
-      db.query(buildQuery(category, startDateStr, endDateStr, { department }).sql, buildQuery(category, startDateStr, endDateStr, { department }).params),
-      db.query(buildQuery(category, startDateStr, endDateStr, { staff_name, department }).sql, buildQuery(category, startDateStr, endDateStr, { staff_name, department }).params),
-    ]);
+    const [companyQueryResult, deptQueryResult, personalQueryResult] =
+      await Promise.all([
+        db.query(
+          buildQuery(category, startDateStr, endDateStr, {}).sql,
+          buildQuery(category, startDateStr, endDateStr, {}).params
+        ),
+        db.query(
+          buildQuery(category, startDateStr, endDateStr, { department }).sql,
+          buildQuery(category, startDateStr, endDateStr, { department }).params
+        ),
+        db.query(
+          buildQuery(category, startDateStr, endDateStr, {
+            staff_name,
+            department,
+          }).sql,
+          buildQuery(category, startDateStr, endDateStr, {
+            staff_name,
+            department,
+          }).params
+        ),
+      ]);
 
-    const companyBasePrices = processQueryResults(companyQueryResult[0], category);
+    const companyBasePrices = processQueryResults(
+      companyQueryResult[0],
+      category
+    );
     const deptBasePrices = processQueryResults(deptQueryResult[0], category);
 
     const [categories] = await db.query(
@@ -160,7 +179,9 @@ async function getCategorySpecSummary(req, res) {
       return {
         category: item.category,
         specification: item.specification,
-        factory_price: `¥${factoryPrice.toFixed(2)}`,
+        factory_price: `¥${factoryPrice.toFixed(2)}/$${(
+          factoryPrice / USD_RATE
+        ).toFixed(4)}`,
         shipping_cost: `$${avgShippingCost.toFixed(4)}`,
         platform_subsidy: `$${avgPlatformSubsidy.toFixed(4)}`,
         return_loss: `$${avgReturnLoss.toFixed(4)}`,
