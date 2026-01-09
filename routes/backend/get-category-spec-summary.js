@@ -163,7 +163,12 @@ async function getCategorySpecSummary(req, res) {
       `SELECT DISTINCT category FROM sales_report_daily WHERE category IS NOT NULL ORDER BY category`
     );
 
-    const formattedData = personalQueryResult[0].map((item) => {
+    // 如果个人数据为空，使用公司数据
+    const dataSource = personalQueryResult[0].length > 0
+      ? personalQueryResult[0]
+      : companyQueryResult[0];
+
+    const formattedData = dataSource.map((item) => {
       const factoryPrice = getFactoryPrice(category, item.specification);
       const avgShippingCost = parseFloat(item.avg_shipping_cost) || 0;
       const avgPlatformSubsidy = parseFloat(item.total_platform_subsidy) || 0;
@@ -186,8 +191,8 @@ async function getCategorySpecSummary(req, res) {
         platform_subsidy: `$${avgPlatformSubsidy.toFixed(4)}`,
         return_loss: `$${avgReturnLoss.toFixed(4)}`,
         resend_loss: `$${avgResendLoss.toFixed(4)}`,
-        personal_base_price: `$${personalBasePrice.toFixed(4)}`,
-        dept_base_price: deptBasePrices[item.specification] || null,
+        personal_base_price: personalQueryResult[0].length > 0 ? `$${personalBasePrice.toFixed(4)}` : null,
+        dept_base_price: deptQueryResult[0].length > 0 ? deptBasePrices[item.specification] || null : null,
         company_base_price: companyBasePrices[item.specification] || null,
       };
     });
