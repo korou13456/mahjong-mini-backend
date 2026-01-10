@@ -24,12 +24,12 @@ router.get("/template", (req, res) => {
   }
 });
 
-// Excel 表格解析工具页面
-router.get("/table-processor", (req, res) => {
-  res.sendFile(path.join(__dirname, "table-processor.html"));
-});
+// // Excel 表格解析工具页面
+// router.get("/table-processor", (req, res) => {
+//   res.sendFile(path.join(__dirname, "table-processor.html"));
+// });
 
-// Excel 表格解析工具 - 静态资源（CSS、JS）
-router.use('/table-processor-resources', express.static(__dirname));
+// // Excel 表格解析工具 - 静态资源（CSS、JS）
+// router.use('/table-processor-resources', express.static(__dirname));
 
 module.exports = router;
