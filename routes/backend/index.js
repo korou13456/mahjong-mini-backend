@@ -30,6 +30,9 @@ router.get("/sales-weekly", backendAuth, require("./get-sales-weekly"));
 // 获取品类规格汇总数据
 router.get("/category-spec-summary", backendAuth, require("./get-category-spec-summary"));
 
+// 库存管理
+router.use("/inventory_blanket", require("./inventory_management/blanket"));
+
 // 其他后台接口可以继续添加
 // router.get('/users', backendAuth, require('./users'));
 // router.post('/users', backendAuth, require('./users/create'));
