@@ -92,6 +92,16 @@ async function getOrderProductAggregate(req, res) {
       db.query(variationsSql),
     ]);
 
+    console.log("Query results:", {
+      total,
+      summaryRows,
+      list,
+      departments,
+      staffNames,
+      categories,
+      variations,
+    });
+
     // 按品类分组尺码
     const categorySpecifications = {};
     variations.forEach(({ category, variation }) => {
