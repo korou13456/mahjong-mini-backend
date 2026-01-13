@@ -39,6 +39,12 @@ router.get(
   backendAuth,
   require("./get-category-spec-summary")
 );
+// 获取订单商品聚合数据
+router.get(
+  "/order-product-aggregate",
+  backendAuth,
+  require("./get-order-product-aggregate")
+);
 
 // 库存管理
 router.use("/inventory_blanket", require("./inventory_management/blanket"));
