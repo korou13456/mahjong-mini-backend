@@ -19,21 +19,25 @@ async function batchImportOrders(req, res) {
 
     for (const order of orders) {
       try {
+        if (!order.order_item_id) {
+          throw new Error("order_item_id 不能为空");
+        }
+
         // 查询订单是否存在
         const [existing] = await db.query(
-          `SELECT id FROM order_product_record WHERE order_id = ?`,
-          [order.order_id]
+          `SELECT id FROM order_product_record WHERE order_item_id = ?`,
+          [order.order_item_id]
         );
 
         if (existing.length > 0) {
           // 订单存在，更新
           await db.query(
             `UPDATE order_product_record
-             SET product_name = ?, category = ?, variation = ?, quantity = ?, price = ?,
+             SET order_id = ?, category = ?, variation = ?, quantity = ?, price = ?,
                  status = ?, purchase_date_america = ?, purchase_date_china = ?
-             WHERE order_id = ?`,
+             WHERE order_item_id = ?`,
             [
-              order.product_name,
+              order.order_id,
               order.category,
               order.variation || null,
               order.quantity || 1,
@@ -41,18 +45,18 @@ async function batchImportOrders(req, res) {
               order.status !== undefined ? order.status : 1,
               order.purchase_date_america,
               order.purchase_date_china,
-              order.order_id,
+              order.order_item_id,
             ]
           );
           updatedCount++;
         } else {
           // 订单不存在，插入
           await db.query(
-            `INSERT INTO order_product_record (order_id, product_name, category, variation, quantity, price, department, staff_name, status, purchase_date_america, purchase_date_china)
+            `INSERT INTO order_product_record (order_id, order_item_id, category, variation, quantity, price, department, staff_name, status, purchase_date_america, purchase_date_china)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               order.order_id,
-              order.product_name,
+              order.order_item_id,
               order.category,
               order.variation || null,
               order.quantity || 1,
@@ -67,7 +71,7 @@ async function batchImportOrders(req, res) {
           addedCount++;
         }
       } catch (err) {
-        errors.push({ order_id: order.order_id, error: err.message });
+        errors.push({ order_item_id: order.order_item_id, error: err.message });
       }
     }
 
