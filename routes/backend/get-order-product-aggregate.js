@@ -77,7 +77,7 @@ async function getOrderProductAggregate(req, res) {
     const [
       [[{ total }]],
       [[summaryRows]],
-      [list],
+      list,
       [departments],
       [staffNames],
       [categories],
