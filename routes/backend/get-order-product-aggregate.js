@@ -15,9 +15,6 @@ async function getOrderProductAggregate(req, res) {
 
     const variation = specification;
 
-    const { username: current_staff_name, department: current_department } =
-      req.user || {};
-
     const conditions = [];
     const params = [];
 
@@ -32,14 +29,14 @@ async function getOrderProductAggregate(req, res) {
     }
 
     // 部门（参数优先）
-    const finalDepartment = department || current_department;
+    const finalDepartment = department;
     if (finalDepartment) {
       conditions.push("department = ?");
       params.push(finalDepartment);
     }
 
     // 员工（参数优先）
-    const finalStaffName = staff_name || current_staff_name;
+    const finalStaffName = staff_name;
     if (finalStaffName) {
       conditions.push("staff_name = ?");
       params.push(finalStaffName);
@@ -73,12 +70,6 @@ async function getOrderProductAggregate(req, res) {
     const staffNamesSql = `SELECT DISTINCT staff_name FROM order_product_aggregate ORDER BY staff_name`;
     const categoriesSql = `SELECT DISTINCT category FROM order_product_aggregate ORDER BY category`;
     const variationsSql = `SELECT DISTINCT category, variation FROM order_product_aggregate ORDER BY category, variation`;
-
-    console.log("执行的 SQL:", {
-      listSql,
-    });
-
-    console.log([...params, pageSize, offset], "!====>>");
 
     const [
       [[{ total }]],
