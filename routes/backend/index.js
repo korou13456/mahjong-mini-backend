@@ -23,12 +23,22 @@ router.post(
   backendAuth,
   require("./batch-import-sales")
 );
+// 批量导入订单
+router.post(
+  "/batch-import-orders",
+  backendAuth,
+  require("./batch-import-orders")
+);
 // 获取运营日报数据
 router.get("/sales-daily", backendAuth, require("./get-sales-daily"));
 // 获取运营周报数据
 router.get("/sales-weekly", backendAuth, require("./get-sales-weekly"));
 // 获取品类规格汇总数据
-router.get("/category-spec-summary", backendAuth, require("./get-category-spec-summary"));
+router.get(
+  "/category-spec-summary",
+  backendAuth,
+  require("./get-category-spec-summary")
+);
 
 // 库存管理
 router.use("/inventory_blanket", require("./inventory_management/blanket"));

@@ -23,16 +23,16 @@ async function batchImportSales(req, res) {
     await connection.beginTransaction();
 
     // 批量查询已存在的订单号
-    const orderNos = data.map(item => item.orderNo).filter(orderNo => orderNo);
-    if (orderNos.length > 0) {
+    const orderItemIds = data.map(item => item.orderItemId).filter(orderItemId => orderItemId);
+    if (orderItemIds.length > 0) {
       const [existingOrders] = await connection.query(
-        'SELECT id, order_no FROM sales_report WHERE order_no IN (?)',
-        [orderNos]
+        'SELECT id, order_item_id FROM sales_report WHERE order_item_id IN (?)',
+        [orderItemIds]
       );
-      
+
       const existingOrderMap = new Map();
       existingOrders.forEach(row => {
-        existingOrderMap.set(row.order_no, row.id);
+        existingOrderMap.set(row.order_item_id, row.id);
       });
 
       // 分离需要更新和插入的数据
@@ -47,6 +47,7 @@ async function batchImportSales(req, res) {
           department,
           staffName,
           orderNo,
+          orderItemId,
           salesVolume,
           salesAmount,
           shippingCost,
@@ -54,18 +55,18 @@ async function batchImportSales(req, res) {
           returnLoss
         } = item;
 
-        if (orderNo && existingOrderMap.has(orderNo)) {
+        if (orderItemId && existingOrderMap.has(orderItemId)) {
           // 需要更新
           updates.push([
-            reportDate, category, specification, department, staffName,
+            reportDate, category, specification, department, staffName, orderNo, orderItemId,
             salesVolume || 0, salesAmount || 0, shippingCost || 0,
             platformSubsidy || 0, returnLoss || 0,
-            orderNo
+            orderItemId
           ]);
         } else {
           // 需要插入
           inserts.push([
-            reportDate, category, specification, department, staffName, orderNo,
+            reportDate, category, specification, department, staffName, orderNo, orderItemId,
             salesVolume || 0, salesAmount || 0, shippingCost || 0,
             platformSubsidy || 0, returnLoss || 0
           ]);
@@ -82,13 +83,15 @@ async function batchImportSales(req, res) {
                specification = ?,
                department = ?,
                staff_name = ?,
+               order_no = ?,
+               order_item_id = ?,
                sales_volume = ?,
                sales_amount = ?,
                shipping_cost = ?,
                platform_subsidy = ?,
                return_loss = ?,
                updated_at = CURRENT_TIMESTAMP
-               WHERE order_no = ?`,
+               WHERE order_item_id = ?`,
             updateData
           );
         }
@@ -98,7 +101,7 @@ async function batchImportSales(req, res) {
       if (inserts.length > 0) {
         await connection.query(
           `INSERT INTO sales_report
-             (report_date, category, specification, department, staff_name, order_no,
+             (report_date, category, specification, department, staff_name, order_no, order_item_id,
               sales_volume, sales_amount, shipping_cost, platform_subsidy, return_loss)
              VALUES ?`,
           [inserts]
