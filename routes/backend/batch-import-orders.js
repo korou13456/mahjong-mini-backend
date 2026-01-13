@@ -13,25 +13,71 @@ async function batchImportOrders(req, res) {
       });
     }
 
-    let addedCount = 0;
-    let updatedCount = 0;
-    const errors = [];
+    // 验证数据
+    for (const order of orders) {
+      if (!order.order_item_id) {
+        return res.status(400).json({
+          code: 400,
+          message: "order_item_id 不能为空",
+        });
+      }
+    }
+
+    const orderItemIds = orders.map((o) => o.order_item_id);
+
+    // 批量查询已存在的订单
+    const [existingRecords] = await db.query(
+      `SELECT id, order_item_id FROM order_product_record WHERE order_item_id IN (?)`,
+      [orderItemIds]
+    );
+
+    const existingMap = new Map(
+      existingRecords.map((r) => [r.order_item_id, r.id])
+    );
+
+    // 分类处理：待插入和待更新的数据
+    const toInsert = [];
+    const toUpdate = [];
 
     for (const order of orders) {
-      try {
-        if (!order.order_item_id) {
-          throw new Error("order_item_id 不能为空");
-        }
+      if (existingMap.has(order.order_item_id)) {
+        toUpdate.push(order);
+      } else {
+        toInsert.push(order);
+      }
+    }
 
-        // 查询订单是否存在
-        const [existing] = await db.query(
-          `SELECT id FROM order_product_record WHERE order_item_id = ?`,
-          [order.order_item_id]
-        );
+    // 批量插入
+    let addedCount = 0;
+    if (toInsert.length > 0) {
+      const insertValues = toInsert
+        .map(
+          (o) =>
+            `(${db.escape(o.order_id)}, ${db.escape(
+              o.order_item_id
+            )}, ${db.escape(o.category)}, ${db.escape(o.variation || null)}, ${
+              o.quantity || 1
+            }, ${o.price}, ${db.escape(department)}, ${db.escape(
+              staff_name
+            )}, ${o.status !== undefined ? o.status : 1}, ${db.escape(
+              o.purchase_date_america
+            )}, ${db.escape(o.purchase_date_china)})`
+        )
+        .join(", ");
 
-        if (existing.length > 0) {
-          // 订单存在，更新
-          await db.query(
+      await db.query(
+        `INSERT INTO order_product_record (order_id, order_item_id, category, variation, quantity, price, department, staff_name, status, purchase_date_america, purchase_date_china)
+         VALUES ${insertValues}`
+      );
+      addedCount = toInsert.length;
+    }
+
+    // 批量更新
+    let updatedCount = 0;
+    if (toUpdate.length > 0) {
+      await Promise.all(
+        toUpdate.map((order) =>
+          db.query(
             `UPDATE order_product_record
              SET order_id = ?, category = ?, variation = ?, quantity = ?, price = ?,
                  status = ?, purchase_date_america = ?, purchase_date_china = ?
@@ -47,32 +93,10 @@ async function batchImportOrders(req, res) {
               order.purchase_date_china,
               order.order_item_id,
             ]
-          );
-          updatedCount++;
-        } else {
-          // 订单不存在，插入
-          await db.query(
-            `INSERT INTO order_product_record (order_id, order_item_id, category, variation, quantity, price, department, staff_name, status, purchase_date_america, purchase_date_china)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              order.order_id,
-              order.order_item_id,
-              order.category,
-              order.variation || null,
-              order.quantity || 1,
-              order.price,
-              department,
-              staff_name,
-              order.status !== undefined ? order.status : 1,
-              order.purchase_date_america,
-              order.purchase_date_china,
-            ]
-          );
-          addedCount++;
-        }
-      } catch (err) {
-        errors.push({ order_item_id: order.order_item_id, error: err.message });
-      }
+          )
+        )
+      );
+      updatedCount = toUpdate.length;
     }
 
     res.json({
@@ -81,7 +105,7 @@ async function batchImportOrders(req, res) {
       data: {
         addedCount,
         updatedCount,
-        errors,
+        errors: [],
       },
     });
   } catch (error) {
