@@ -75,15 +75,10 @@ async function getOrderProductAggregate(req, res) {
     const variationsSql = `SELECT DISTINCT category, variation FROM order_product_aggregate ORDER BY category, variation`;
 
     console.log("执行的 SQL:", {
-      countSql,
-      summarySql,
       listSql,
-      departmentsSql,
-      staffNamesSql,
-      categoriesSql,
-      variationsSql,
-      params,
     });
+
+    console.log([...params, pageSize, offset], "!====>>");
 
     const [
       [[{ total }]],
