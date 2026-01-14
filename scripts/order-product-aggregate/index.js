@@ -29,7 +29,7 @@ async function aggregateOrderProduct() {
         department,
         staff_name,
         SUM(quantity) as quantity,
-        SUM(price) as price
+        SUM(price * quantity) as price
       FROM order_product_record
       WHERE purchase_date_china >= ? AND status = 1
       GROUP BY DATE(purchase_date_china), category, variation, department, staff_name`,
@@ -79,7 +79,15 @@ async function aggregateOrderProduct() {
           `INSERT INTO order_product_aggregate
            (data_time, category, variation, department, staff_name, quantity, price)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [data_time, category, variation, department, staff_name, quantity, price]
+          [
+            data_time,
+            category,
+            variation,
+            department,
+            staff_name,
+            quantity,
+            price,
+          ]
         );
       }
     }
