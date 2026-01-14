@@ -15,7 +15,7 @@ async function aggregateOrderProduct() {
   try {
     // 计算一个月前的日期
     const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 3);
     const oneMonthAgoStr = oneMonthAgo.toISOString().split("T")[0];
 
     console.log(`聚合日期范围: ${oneMonthAgoStr} 到今天`);
@@ -43,53 +43,39 @@ async function aggregateOrderProduct() {
 
     console.log(`找到 ${orderData.length} 条聚合数据`);
 
-    // 逐条处理，检查是否存在，存在则更新，不存在则插入
-    for (const item of orderData) {
-      const {
-        data_time,
-        category,
-        variation,
-        department,
-        staff_name,
-        quantity,
-        price,
-      } = item;
+    // 批量删除旧数据
+    await db.query(`DELETE FROM order_product_aggregate WHERE data_time >= ?`, [
+      oneMonthAgoStr,
+    ]);
 
-      // 检查是否已存在
-      const [existing] = await db.query(
-        `SELECT id FROM order_product_aggregate
-         WHERE data_time = ? AND category = ? AND variation = ? AND department = ? AND staff_name = ?
-         LIMIT 1`,
-        [data_time, category, variation, department, staff_name]
+    // 批量插入新数据
+    const batchSize = 500;
+    for (let i = 0; i < orderData.length; i += batchSize) {
+      const batch = orderData.slice(i, i + batchSize);
+      const values = batch.flatMap((item) => [
+        item.data_time,
+        item.category,
+        item.variation,
+        item.department,
+        item.staff_name,
+        item.quantity,
+        item.price,
+      ]);
+
+      const placeholders = batch.map(() => "(?, ?, ?, ?, ?, ?, ?)").join(", ");
+
+      await db.query(
+        `INSERT INTO order_product_aggregate
+         (data_time, category, variation, department, staff_name, quantity, price)
+         VALUES ${placeholders}`,
+        values
       );
 
-      if (existing.length > 0) {
-        // 更新已存在的记录
-        await db.query(
-          `UPDATE order_product_aggregate SET
-           quantity = ?,
-           price = ?,
-           updated_at = CURRENT_TIMESTAMP
-           WHERE id = ?`,
-          [quantity, price, existing[0].id]
-        );
-      } else {
-        // 插入新记录
-        await db.query(
-          `INSERT INTO order_product_aggregate
-           (data_time, category, variation, department, staff_name, quantity, price)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            data_time,
-            category,
-            variation,
-            department,
-            staff_name,
-            quantity,
-            price,
-          ]
-        );
-      }
+      console.log(
+        `已处理 ${Math.min(i + batchSize, orderData.length)}/${
+          orderData.length
+        } 条数据`
+      );
     }
 
     console.log(`订单商品数据聚合完成，处理了 ${orderData.length} 条数据`);
