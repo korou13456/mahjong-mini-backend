@@ -48,6 +48,13 @@ router.get(
 
 // 库存管理
 router.use("/inventory_blanket", require("./inventory_management/blanket"));
+router.use("/inventory_tshirt", require("./inventory_management/tshirt"));
+router.use("/inventory_tapestry", require("./inventory_management/tapestry"));
+router.use("/inventory_doormat", require("./inventory_management/doormat"));
+router.use("/inventory_hat", require("./inventory_management/hat"));
+router.use("/inventory_curtain", require("./inventory_management/curtain"));
+router.use("/inventory_mousepad", require("./inventory_management/mousepad"));
+router.use("/inventory_sweatshirt", require("./inventory_management/sweatshirt"));
 
 // 其他后台接口可以继续添加
 // router.get('/users', backendAuth, require('./users'));

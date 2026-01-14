@@ -1,7 +1,7 @@
-// 获取毛毯库存数据（总量表 + 记录表）
+// 获取窗帘库存数据（总量表 + 记录表）
 const db = require("../../../../config/database");
 
-async function getBlanketInventory(req, res) {
+async function getCurtainInventory(req, res) {
   try {
     const { start_date, end_date, status, page = 1, limit = 20 } = req.query;
 
@@ -20,8 +20,8 @@ async function getBlanketInventory(req, res) {
 
     // 查询总量
     const [inventory] = await db.query(
-      `SELECT id, size_40_30, size_50_40, size_60_50, size_70_60, size_80_60, updated_at
-       FROM blanket_inventory
+      `SELECT id, size_52_63, size_52_84, updated_at
+       FROM curtain_inventory
        LIMIT 1`
     );
 
@@ -38,7 +38,7 @@ async function getBlanketInventory(req, res) {
 
     // 查询总数
     const [totalResult] = await db.query(
-      `SELECT COUNT(*) as total FROM blanket_inventory_record WHERE ${whereClause}`,
+      `SELECT COUNT(*) as total FROM curtain_inventory_record WHERE ${whereClause}`,
       params
     );
 
@@ -47,8 +47,8 @@ async function getBlanketInventory(req, res) {
 
     // 查询记录（分页）
     const [records] = await db.query(
-      `SELECT id, record_date, status, size_40_30, size_50_40, size_60_50, size_70_60, size_80_60, remark, image_urls, created_at, updated_at
-       FROM blanket_inventory_record
+      `SELECT id, record_date, status, size_52_63, size_52_84, remark, image_urls, created_at, updated_at
+       FROM curtain_inventory_record
        WHERE ${whereClause}
        ORDER BY record_date DESC, created_at DESC
        LIMIT ? OFFSET ?`,
@@ -61,11 +61,8 @@ async function getBlanketInventory(req, res) {
       data: {
         inventory: inventory[0] || {
           id: null,
-          size_40_30: 0,
-          size_50_40: 0,
-          size_60_50: 0,
-          size_70_60: 0,
-          size_80_60: 0,
+          size_52_63: 0,
+          size_52_84: 0,
           updated_at: null,
         },
         records: records.map((record) => ({
@@ -81,7 +78,7 @@ async function getBlanketInventory(req, res) {
       },
     });
   } catch (error) {
-    console.error("获取毛毯库存数据失败:", error);
+    console.error("获取窗帘库存数据失败:", error);
     res.status(500).json({
       code: 500,
       message: "服务器错误",
@@ -89,4 +86,4 @@ async function getBlanketInventory(req, res) {
   }
 }
 
-module.exports = getBlanketInventory;
+module.exports = getCurtainInventory;
