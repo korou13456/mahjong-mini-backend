@@ -61,12 +61,14 @@ async function batchImportOrders(req, res) {
               staff_name
             )}, ${o.status !== undefined ? o.status : 1}, ${db.escape(
               o.purchase_date_america
-            )}, ${db.escape(o.purchase_date_china)})`
+            )}, ${db.escape(o.purchase_date_china)}, ${db.escape(
+              o.recipient_name || null
+            )})`
         )
         .join(", ");
 
       await db.query(
-        `INSERT INTO order_product_record (order_id, order_item_id, category, variation, quantity, price, department, staff_name, status, purchase_date_america, purchase_date_china)
+        `INSERT INTO order_product_record (order_id, order_item_id, category, variation, quantity, price, department, staff_name, status, purchase_date_america, purchase_date_china, recipient_name)
          VALUES ${insertValues}`
       );
       addedCount = toInsert.length;
@@ -80,7 +82,7 @@ async function batchImportOrders(req, res) {
           db.query(
             `UPDATE order_product_record
              SET order_id = ?, category = ?, variation = ?, quantity = ?, price = ?,
-                 status = ?, purchase_date_america = ?, purchase_date_china = ?
+                 status = ?, purchase_date_america = ?, purchase_date_china = ?, recipient_name = ?
              WHERE order_item_id = ?`,
             [
               order.order_id,
@@ -91,6 +93,7 @@ async function batchImportOrders(req, res) {
               order.status !== undefined ? order.status : 1,
               order.purchase_date_america,
               order.purchase_date_china,
+              order.recipient_name || null,
               order.order_item_id,
             ]
           )
