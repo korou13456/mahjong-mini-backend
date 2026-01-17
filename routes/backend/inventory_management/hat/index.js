@@ -9,6 +9,9 @@ router.get("/get", backendAuth, require("./get-hat-inventory"));
 // 新增帽子库存记录
 router.post("/add", backendAuth, require("./add-hat-record"));
 
+// 批量新增帽子库存记录
+router.post("/batch-add", backendAuth, require("./batch-add-hat-record"));
+
 // 修改帽子库存记录
 router.post("/update", backendAuth, require("./update-hat-record"));
 

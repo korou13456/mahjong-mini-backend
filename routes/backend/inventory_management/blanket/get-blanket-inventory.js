@@ -20,7 +20,7 @@ async function getBlanketInventory(req, res) {
 
     // 查询总量
     const [inventory] = await db.query(
-      `SELECT id, size_40_30, size_50_40, size_60_50, size_70_60, size_80_60, updated_at
+      `SELECT id, size_40_30, size_50_40, size_60_50, size_60_70, size_80_60, updated_at
        FROM blanket_inventory
        LIMIT 1`
     );
@@ -47,7 +47,7 @@ async function getBlanketInventory(req, res) {
 
     // 查询记录（分页）
     const [records] = await db.query(
-      `SELECT id, record_date, status, size_40_30, size_50_40, size_60_50, size_70_60, size_80_60, remark, image_urls, created_at, updated_at
+      `SELECT id, record_date, status, size_40_30, size_50_40, size_60_50, size_60_70, size_80_60, remark, image_urls, created_at, updated_at
        FROM blanket_inventory_record
        WHERE ${whereClause}
        ORDER BY record_date DESC, created_at DESC
@@ -64,7 +64,7 @@ async function getBlanketInventory(req, res) {
           size_40_30: 0,
           size_50_40: 0,
           size_60_50: 0,
-          size_70_60: 0,
+          size_60_70: 0,
           size_80_60: 0,
           updated_at: null,
         },

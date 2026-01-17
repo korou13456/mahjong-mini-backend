@@ -9,6 +9,9 @@ router.get("/get", backendAuth, require("./get-mousepad-inventory"));
 // 新增鼠标垫库存记录
 router.post("/add", backendAuth, require("./add-mousepad-record"));
 
+// 批量新增鼠标垫库存记录
+router.post("/batch-add", backendAuth, require("./batch-add-mousepad-record"));
+
 // 修改鼠标垫库存记录
 router.post("/update", backendAuth, require("./update-mousepad-record"));
 

@@ -9,6 +9,9 @@ router.get("/get", backendAuth, require("./get-curtain-inventory"));
 // 新增窗帘库存记录
 router.post("/add", backendAuth, require("./add-curtain-record"));
 
+// 批量新增窗帘库存记录
+router.post("/batch-add", backendAuth, require("./batch-add-curtain-record"));
+
 // 修改窗帘库存记录
 router.post("/update", backendAuth, require("./update-curtain-record"));
 

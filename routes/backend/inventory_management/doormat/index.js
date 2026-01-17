@@ -9,6 +9,9 @@ router.get("/get", backendAuth, require("./get-doormat-inventory"));
 // 新增地垫库存记录
 router.post("/add", backendAuth, require("./add-doormat-record"));
 
+// 批量新增地垫库存记录
+router.post("/batch-add", backendAuth, require("./batch-add-doormat-record"));
+
 // 修改地垫库存记录
 router.post("/update", backendAuth, require("./update-doormat-record"));
 

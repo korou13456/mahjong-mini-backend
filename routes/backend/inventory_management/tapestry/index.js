@@ -9,6 +9,9 @@ router.get("/get", backendAuth, require("./get-tapestry-inventory"));
 // 新增挂毯库存记录
 router.post("/add", backendAuth, require("./add-tapestry-record"));
 
+// 批量新增挂毯库存记录
+router.post("/batch-add", backendAuth, require("./batch-add-tapestry-record"));
+
 // 修改挂毯库存记录
 router.post("/update", backendAuth, require("./update-tapestry-record"));
 

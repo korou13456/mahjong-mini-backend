@@ -9,6 +9,9 @@ router.get("/get", backendAuth, require("./get-sweatshirt-inventory"));
 // 新增卫衣库存记录
 router.post("/add", backendAuth, require("./add-sweatshirt-record"));
 
+// 批量新增卫衣库存记录
+router.post("/batch-add", backendAuth, require("./batch-add-sweatshirt-record"));
+
 // 修改卫衣库存记录
 router.post("/update", backendAuth, require("./update-sweatshirt-record"));
 

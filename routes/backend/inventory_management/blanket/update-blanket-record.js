@@ -10,7 +10,7 @@ async function updateBlanketRecord(req, res) {
       size_40_30 = 0,
       size_50_40 = 0,
       size_60_50 = 0,
-      size_70_60 = 0,
+      size_60_70 = 0,
       size_80_60 = 0,
       remark,
       image_urls,
@@ -53,10 +53,10 @@ async function updateBlanketRecord(req, res) {
          size_40_30 = size_40_30 + ?,
          size_50_40 = size_50_40 + ?,
          size_60_50 = size_60_50 + ?,
-         size_70_60 = size_70_60 + ?,
+         size_60_70 = size_60_70 + ?,
          size_80_60 = size_80_60 + ?,
          updated_at = CURRENT_TIMESTAMP`,
-        [size_40_30, size_50_40, size_60_50, size_70_60, size_80_60]
+        [size_40_30, size_50_40, size_60_50, size_60_70, size_80_60]
       );
     }
 
@@ -68,7 +68,7 @@ async function updateBlanketRecord(req, res) {
        size_40_30 = ?,
        size_50_40 = ?,
        size_60_50 = ?,
-       size_70_60 = ?,
+       size_60_70 = ?,
        size_80_60 = ?,
        remark = ?,
        image_urls = ?
@@ -79,7 +79,7 @@ async function updateBlanketRecord(req, res) {
         size_40_30,
         size_50_40,
         size_60_50,
-        size_70_60,
+        size_60_70,
         size_80_60,
         remark || null,
         image_urls ? JSON.stringify(image_urls) : null,
