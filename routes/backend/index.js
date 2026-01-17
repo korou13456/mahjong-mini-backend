@@ -45,6 +45,12 @@ router.get(
   backendAuth,
   require("./get-order-product-aggregate")
 );
+// 根据订单ID查询收件人信息
+router.get(
+  "/recipient-by-order-id",
+  backendAuth,
+  require("./get-recipient-by-order-id")
+);
 
 // 库存管理
 router.use("/inventory_blanket", require("./inventory_management/blanket"));
