@@ -1,5 +1,6 @@
 // 新增窗帘库存记录
 const db = require("../../../../config/database");
+const generateBatchHash = require("../../../../utils/generate-batch-hash");
 
 async function addCurtainRecord(req, res) {
   try {
@@ -33,11 +34,13 @@ async function addCurtainRecord(req, res) {
       });
     }
 
+    const batch_hash = generateBatchHash(req.body);
+
     // 插入明细记录
     await db.query(
       `INSERT INTO curtain_inventory_record
-       (record_date, status, size_52_63, size_52_84, remark, image_urls)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+       (record_date, status, size_52_63, size_52_84, remark, image_urls, batch_hash)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         record_date,
         status,
@@ -45,6 +48,7 @@ async function addCurtainRecord(req, res) {
         size_52_84,
         remark || null,
         image_urls ? JSON.stringify(image_urls) : null,
+        batch_hash,
       ]
     );
 

@@ -1,5 +1,6 @@
 // 新增卫衣库存记录
 const db = require("../../../../config/database");
+const generateBatchHash = require("../../../../utils/generate-batch-hash");
 
 async function addSweatshirtRecord(req, res) {
   try {
@@ -35,6 +36,8 @@ async function addSweatshirtRecord(req, res) {
       });
     }
 
+    const batch_hash = generateBatchHash(req.body);
+
     // 插入明细记录
     await db.query(
       `INSERT INTO sweatshirt_inventory_record
@@ -43,13 +46,13 @@ async function addSweatshirtRecord(req, res) {
         gray_s, gray_m, gray_l, gray_xl, gray_xxl, gray_3xl, gray_4xl, gray_5xl,
         navy_s, navy_m, navy_l, navy_xl, navy_xxl, navy_3xl, navy_4xl, navy_5xl,
         white_s, white_m, white_l, white_xl, white_xxl, white_3xl, white_4xl, white_5xl,
-        remark, image_urls)
+        remark, image_urls, batch_hash)
        VALUES (?, ?,
                ?, ?, ?, ?, ?, ?, ?, ?,
                ?, ?, ?, ?, ?, ?, ?, ?,
                ?, ?, ?, ?, ?, ?, ?, ?,
                ?, ?, ?, ?, ?, ?, ?, ?,
-               ?, ?)`,
+               ?, ?, ?)`,
       [
         record_date,
         status,
@@ -59,6 +62,7 @@ async function addSweatshirtRecord(req, res) {
         white_s, white_m, white_l, white_xl, white_xxl, white_3xl, white_4xl, white_5xl,
         remark || null,
         image_urls ? JSON.stringify(image_urls) : null,
+        batch_hash,
       ]
     );
 

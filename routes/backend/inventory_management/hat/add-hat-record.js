@@ -1,5 +1,6 @@
 // 新增帽子库存记录
 const db = require("../../../../config/database");
+const generateBatchHash = require("../../../../utils/generate-batch-hash");
 
 async function addHatRecord(req, res) {
   try {
@@ -34,11 +35,13 @@ async function addHatRecord(req, res) {
       });
     }
 
+    const batch_hash = generateBatchHash(req.body);
+
     // 插入明细记录
     await db.query(
       `INSERT INTO hat_inventory_record
-       (record_date, status, washed_black_denim, washed_sand_denim, red_sandwich_cap, remark, image_urls)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (record_date, status, washed_black_denim, washed_sand_denim, red_sandwich_cap, remark, image_urls, batch_hash)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         record_date,
         status,
@@ -47,6 +50,7 @@ async function addHatRecord(req, res) {
         red_sandwich_cap,
         remark || null,
         image_urls ? JSON.stringify(image_urls) : null,
+        batch_hash,
       ]
     );
 

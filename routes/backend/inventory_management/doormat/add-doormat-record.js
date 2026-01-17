@@ -1,5 +1,6 @@
 // 新增地垫库存记录
 const db = require("../../../../config/database");
+const generateBatchHash = require("../../../../utils/generate-batch-hash");
 
 async function addDoormatRecord(req, res) {
   try {
@@ -34,11 +35,13 @@ async function addDoormatRecord(req, res) {
       });
     }
 
+    const batch_hash = generateBatchHash(req.body);
+
     // 插入明细记录
     await db.query(
       `INSERT INTO doormat_inventory_record
-       (record_date, status, size_40_60, size_43_75, size_43_120, remark, image_urls)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (record_date, status, size_40_60, size_43_75, size_43_120, remark, image_urls, batch_hash)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         record_date,
         status,
@@ -47,6 +50,7 @@ async function addDoormatRecord(req, res) {
         size_43_120,
         remark || null,
         image_urls ? JSON.stringify(image_urls) : null,
+        batch_hash,
       ]
     );
 

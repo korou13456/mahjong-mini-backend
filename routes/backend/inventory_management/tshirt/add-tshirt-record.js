@@ -1,5 +1,6 @@
 // 新增T恤库存记录
 const db = require("../../../../config/database");
+const generateBatchHash = require("../../../../utils/generate-batch-hash");
 
 async function addTshirtRecord(req, res) {
   try {
@@ -47,12 +48,14 @@ async function addTshirtRecord(req, res) {
       });
     }
 
+    const batch_hash = generateBatchHash(req.body);
+
     // 插入明细记录
     await db.query(
       `INSERT INTO tshirt_inventory_record
        (record_date, status, black_s, black_m, black_l, black_xl, black_xxl, black_3xl, black_4xl, black_5xl,
-        white_s, white_m, white_l, white_xl, white_xxl, white_3xl, white_4xl, white_5xl, remark, image_urls)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        white_s, white_m, white_l, white_xl, white_xxl, white_3xl, white_4xl, white_5xl, remark, image_urls, batch_hash)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         record_date,
         status,
@@ -74,6 +77,7 @@ async function addTshirtRecord(req, res) {
         white_5xl,
         remark || null,
         image_urls ? JSON.stringify(image_urls) : null,
+        batch_hash,
       ]
     );
 

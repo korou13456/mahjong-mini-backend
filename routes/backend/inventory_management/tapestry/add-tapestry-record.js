@@ -1,5 +1,6 @@
 // 新增挂毯库存记录
 const db = require("../../../../config/database");
+const generateBatchHash = require("../../../../utils/generate-batch-hash");
 
 async function addTapestryRecord(req, res) {
   try {
@@ -36,11 +37,13 @@ async function addTapestryRecord(req, res) {
       });
     }
 
+    const batch_hash = generateBatchHash(req.body);
+
     // 插入明细记录
     await db.query(
       `INSERT INTO tapestry_inventory_record
-       (record_date, status, size_40_30, size_60_40, size_60_50, size_80_60, size_90_60, remark, image_urls)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (record_date, status, size_40_30, size_60_40, size_60_50, size_80_60, size_90_60, remark, image_urls, batch_hash)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         record_date,
         status,
@@ -51,6 +54,7 @@ async function addTapestryRecord(req, res) {
         size_90_60,
         remark || null,
         image_urls ? JSON.stringify(image_urls) : null,
+        batch_hash,
       ]
     );
 

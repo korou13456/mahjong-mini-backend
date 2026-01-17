@@ -1,5 +1,6 @@
 // 新增鼠标垫库存记录
 const db = require("../../../../config/database");
+const generateBatchHash = require("../../../../utils/generate-batch-hash");
 
 async function addMousepadRecord(req, res) {
   try {
@@ -32,17 +33,20 @@ async function addMousepadRecord(req, res) {
       });
     }
 
+    const batch_hash = generateBatchHash(req.body);
+
     // 插入明细记录
     await db.query(
       `INSERT INTO mousepad_inventory_record
-       (record_date, status, size_30_80, remark, image_urls)
-       VALUES (?, ?, ?, ?, ?)`,
+       (record_date, status, size_30_80, remark, image_urls, batch_hash)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
         record_date,
         status,
         size_30_80,
         remark || null,
         image_urls ? JSON.stringify(image_urls) : null,
+        batch_hash,
       ]
     );
 
