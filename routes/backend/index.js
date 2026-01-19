@@ -51,6 +51,11 @@ router.get(
   backendAuth,
   require("./get-recipient-by-order-id")
 );
+// 获取管理员用户列表
+router.get("/admin-users", backendAuth, require("./get-admin-users"));
+
+// 路由权限管理
+router.use("/router_permission", backendAuth, require("./router_permission"));
 
 // 库存管理
 router.use("/inventory_blanket", require("./inventory_management/blanket"));

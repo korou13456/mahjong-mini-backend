@@ -58,6 +58,7 @@ async function login(req, res) {
       username: user.username,
       role: user.role,
       department: user.department,
+      phone:user.phone
     });
 
     // 登录成功，返回用户信息和 token
