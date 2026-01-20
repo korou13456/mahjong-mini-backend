@@ -25,6 +25,32 @@ async function getMousepadInventory(req, res) {
        LIMIT 1`
     );
 
+    // 查询在路上数据（status=0）的聚合
+    const [transitResult] = await db.query(
+      `SELECT COALESCE(SUM(size_30_80), 0) as size_30_80
+       FROM mousepad_inventory_record
+       WHERE status = 0`
+    );
+
+    const transitData = transitResult[0] || { size_30_80: 0 };
+
+    // 查询15天前到5天前中间10天所有status=1的数据聚合
+    const fifteenDaysAgo = new Date();
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+    const fiveDaysAgo = new Date();
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+
+    const [recentResult] = await db.query(
+      `SELECT COALESCE(SUM(size_30_80), 0) as size_30_80
+       FROM mousepad_inventory_record
+       WHERE status = 2
+       AND record_date >= ?
+       AND record_date <= ?`,
+      [fifteenDaysAgo.toISOString().split("T")[0], fiveDaysAgo.toISOString().split("T")[0]]
+    );
+
+    const recentData = recentResult[0] || { size_30_80: 0 };
+
     // 构建查询条件
     const conditions = ["record_date >= ? AND record_date <= ?"];
     const params = [startDateStr, endDateStr];
@@ -64,6 +90,8 @@ async function getMousepadInventory(req, res) {
           size_30_80: 0,
           updated_at: null,
         },
+        transit: transitData,
+        recent: recentData,
         records: records.map((record) => ({
           ...record,
           image_urls: record.image_urls ? (typeof record.image_urls === "string" ? JSON.parse(record.image_urls) : record.image_urls) : [],

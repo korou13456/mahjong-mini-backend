@@ -25,6 +25,54 @@ async function getBlanketInventory(req, res) {
        LIMIT 1`
     );
 
+    // 查询在路上数据（status=0）的聚合
+    const [transitResult] = await db.query(
+      `SELECT 
+        COALESCE(SUM(size_40_30), 0) as size_40_30,
+        COALESCE(SUM(size_50_40), 0) as size_50_40,
+        COALESCE(SUM(size_60_50), 0) as size_60_50,
+        COALESCE(SUM(size_60_70), 0) as size_60_70,
+        COALESCE(SUM(size_80_60), 0) as size_80_60
+       FROM blanket_inventory_record
+       WHERE status = 0`
+    );
+
+    const transitData = transitResult[0] || {
+      size_40_30: 0,
+      size_50_40: 0,
+      size_60_50: 0,
+      size_60_70: 0,
+      size_80_60: 0,
+    };
+
+    // 查询15天前到5天前中间10天所有status=1的数据聚合
+    const fifteenDaysAgo = new Date();
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+    const fiveDaysAgo = new Date();
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+
+    const [recentResult] = await db.query(
+      `SELECT
+        COALESCE(SUM(size_40_30), 0) as size_40_30,
+        COALESCE(SUM(size_50_40), 0) as size_50_40,
+        COALESCE(SUM(size_60_50), 0) as size_60_50,
+        COALESCE(SUM(size_60_70), 0) as size_60_70,
+        COALESCE(SUM(size_80_60), 0) as size_80_60
+       FROM blanket_inventory_record
+       WHERE status = 2
+       AND record_date >= ?
+       AND record_date <= ?`,
+      [fifteenDaysAgo.toISOString().split("T")[0], fiveDaysAgo.toISOString().split("T")[0]]
+    );
+
+    const recentData = recentResult[0] || {
+      size_40_30: 0,
+      size_50_40: 0,
+      size_60_50: 0,
+      size_60_70: 0,
+      size_80_60: 0,
+    };
+
     // 构建查询条件
     const conditions = ["record_date >= ? AND record_date <= ?"];
     const params = [startDateStr, endDateStr];
@@ -68,6 +116,8 @@ async function getBlanketInventory(req, res) {
           size_80_60: 0,
           updated_at: null,
         },
+        transit: transitData,
+        recent: recentData,
         records: records.map((record) => ({
           ...record,
           image_urls: record.image_urls ? (typeof record.image_urls === "string" ? JSON.parse(record.image_urls) : record.image_urls) : [],

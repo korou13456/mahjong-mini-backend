@@ -25,6 +25,46 @@ async function getHatInventory(req, res) {
        LIMIT 1`
     );
 
+    // 查询在路上数据（status=0）的聚合
+    const [transitResult] = await db.query(
+      `SELECT
+        COALESCE(SUM(washed_black_denim), 0) as washed_black_denim,
+        COALESCE(SUM(washed_sand_denim), 0) as washed_sand_denim,
+        COALESCE(SUM(red_sandwich_cap), 0) as red_sandwich_cap
+       FROM hat_inventory_record
+       WHERE status = 0`
+    );
+
+    const transitData = transitResult[0] || {
+      washed_black_denim: 0,
+      washed_sand_denim: 0,
+      red_sandwich_cap: 0,
+    };
+
+    // 查询15天前到5天前中间10天所有status=1的数据聚合
+    const fifteenDaysAgo = new Date();
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+    const fiveDaysAgo = new Date();
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+
+    const [recentResult] = await db.query(
+      `SELECT
+        COALESCE(SUM(washed_black_denim), 0) as washed_black_denim,
+        COALESCE(SUM(washed_sand_denim), 0) as washed_sand_denim,
+        COALESCE(SUM(red_sandwich_cap), 0) as red_sandwich_cap
+       FROM hat_inventory_record
+       WHERE status = 2
+       AND record_date >= ?
+       AND record_date <= ?`,
+      [fifteenDaysAgo.toISOString().split("T")[0], fiveDaysAgo.toISOString().split("T")[0]]
+    );
+
+    const recentData = recentResult[0] || {
+      washed_black_denim: 0,
+      washed_sand_denim: 0,
+      red_sandwich_cap: 0,
+    };
+
     // 构建查询条件
     const conditions = ["record_date >= ? AND record_date <= ?"];
     const params = [startDateStr, endDateStr];
@@ -66,6 +106,8 @@ async function getHatInventory(req, res) {
           red_sandwich_cap: 0,
           updated_at: null,
         },
+        transit: transitData,
+        recent: recentData,
         records: records.map((record) => ({
           ...record,
           image_urls: record.image_urls ? (typeof record.image_urls === "string" ? JSON.parse(record.image_urls) : record.image_urls) : [],

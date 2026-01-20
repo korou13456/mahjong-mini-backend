@@ -26,6 +26,70 @@ async function getTshirtInventory(req, res) {
        LIMIT 1`
     );
 
+    // 查询在路上数据（status=0）的聚合
+    const [transitResult] = await db.query(
+      `SELECT
+        COALESCE(SUM(black_s), 0) as black_s,
+        COALESCE(SUM(black_m), 0) as black_m,
+        COALESCE(SUM(black_l), 0) as black_l,
+        COALESCE(SUM(black_xl), 0) as black_xl,
+        COALESCE(SUM(black_xxl), 0) as black_xxl,
+        COALESCE(SUM(black_3xl), 0) as black_3xl,
+        COALESCE(SUM(black_4xl), 0) as black_4xl,
+        COALESCE(SUM(black_5xl), 0) as black_5xl,
+        COALESCE(SUM(white_s), 0) as white_s,
+        COALESCE(SUM(white_m), 0) as white_m,
+        COALESCE(SUM(white_l), 0) as white_l,
+        COALESCE(SUM(white_xl), 0) as white_xl,
+        COALESCE(SUM(white_xxl), 0) as white_xxl,
+        COALESCE(SUM(white_3xl), 0) as white_3xl,
+        COALESCE(SUM(white_4xl), 0) as white_4xl,
+        COALESCE(SUM(white_5xl), 0) as white_5xl
+       FROM tshirt_inventory_record
+       WHERE status = 0`
+    );
+
+    const transitData = transitResult[0] || {
+      black_s: 0, black_m: 0, black_l: 0, black_xl: 0, black_xxl: 0, black_3xl: 0, black_4xl: 0, black_5xl: 0,
+      white_s: 0, white_m: 0, white_l: 0, white_xl: 0, white_xxl: 0, white_3xl: 0, white_4xl: 0, white_5xl: 0,
+    };
+
+    // 查询15天前到5天前中间10天所有status=1的数据聚合
+    const fifteenDaysAgo = new Date();
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+    const fiveDaysAgo = new Date();
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+
+    const [recentResult] = await db.query(
+      `SELECT
+        COALESCE(SUM(black_s), 0) as black_s,
+        COALESCE(SUM(black_m), 0) as black_m,
+        COALESCE(SUM(black_l), 0) as black_l,
+        COALESCE(SUM(black_xl), 0) as black_xl,
+        COALESCE(SUM(black_xxl), 0) as black_xxl,
+        COALESCE(SUM(black_3xl), 0) as black_3xl,
+        COALESCE(SUM(black_4xl), 0) as black_4xl,
+        COALESCE(SUM(black_5xl), 0) as black_5xl,
+        COALESCE(SUM(white_s), 0) as white_s,
+        COALESCE(SUM(white_m), 0) as white_m,
+        COALESCE(SUM(white_l), 0) as white_l,
+        COALESCE(SUM(white_xl), 0) as white_xl,
+        COALESCE(SUM(white_xxl), 0) as white_xxl,
+        COALESCE(SUM(white_3xl), 0) as white_3xl,
+        COALESCE(SUM(white_4xl), 0) as white_4xl,
+        COALESCE(SUM(white_5xl), 0) as white_5xl
+       FROM tshirt_inventory_record
+       WHERE status = 2
+       AND record_date >= ?
+       AND record_date <= ?`,
+      [fifteenDaysAgo.toISOString().split("T")[0], fiveDaysAgo.toISOString().split("T")[0]]
+    );
+
+    const recentData = recentResult[0] || {
+      black_s: 0, black_m: 0, black_l: 0, black_xl: 0, black_xxl: 0, black_3xl: 0, black_4xl: 0, black_5xl: 0,
+      white_s: 0, white_m: 0, white_l: 0, white_xl: 0, white_xxl: 0, white_3xl: 0, white_4xl: 0, white_5xl: 0,
+    };
+
     // 构建查询条件
     const conditions = ["record_date >= ? AND record_date <= ?"];
     const params = [startDateStr, endDateStr];
@@ -81,6 +145,8 @@ async function getTshirtInventory(req, res) {
           white_5xl: 0,
           updated_at: null,
         },
+        transit: transitData,
+        recent: recentData,
         records: records.map((record) => ({
           ...record,
           image_urls: record.image_urls ? (typeof record.image_urls === "string" ? JSON.parse(record.image_urls) : record.image_urls) : [],
