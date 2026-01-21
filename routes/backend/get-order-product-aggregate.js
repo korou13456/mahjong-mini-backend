@@ -64,8 +64,8 @@ async function getOrderProductAggregate(req, res) {
 
     // 并行查询
     const countSql = `SELECT COUNT(*) AS total FROM order_product_aggregate ${whereClause}`;
-    const summarySql = `SELECT SUM(quantity) AS total_quantity, SUM(price) AS total_sales_amount FROM order_product_aggregate ${whereClause}`;
-    const listSql = `SELECT id, category, variation, quantity, price, department, staff_name, data_time, created_at, updated_at FROM order_product_aggregate ${whereClause} ORDER BY data_time DESC LIMIT ? OFFSET ?`;
+    const summarySql = `SELECT SUM(quantity) AS total_quantity, SUM(order_count) AS total_order_count, SUM(price) AS total_sales_amount FROM order_product_aggregate ${whereClause}`;
+    const listSql = `SELECT id, category, variation, quantity, order_count, price, department, staff_name, data_time, created_at, updated_at FROM order_product_aggregate ${whereClause} ORDER BY data_time DESC LIMIT ? OFFSET ?`;
     const departmentsSql = `SELECT DISTINCT department FROM order_product_aggregate ORDER BY department`;
     const staffNamesSql = `SELECT DISTINCT staff_name FROM order_product_aggregate ORDER BY staff_name`;
     const categoriesSql = `SELECT DISTINCT category FROM order_product_aggregate ORDER BY category`;
@@ -112,6 +112,7 @@ async function getOrderProductAggregate(req, res) {
         },
         summary: {
           total_quantity: parseFloat(summaryRows?.total_quantity || 0),
+          total_order_count: parseFloat(summaryRows?.total_order_count || 0),
           total_sales_amount: parseFloat(summaryRows?.total_sales_amount || 0),
         },
         list,
