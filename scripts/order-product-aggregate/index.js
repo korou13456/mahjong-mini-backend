@@ -81,6 +81,7 @@ async function aggregateOrderProduct() {
     console.log(`订单商品数据聚合完成，处理了 ${orderData.length} 条数据`);
   } catch (error) {
     console.error("订单商品数据聚合失败:", error);
+    throw error; // 抛出错误让PM2知道
   }
 }
 
@@ -90,17 +91,26 @@ cron.schedule("0 19 * * *", async () => {
   await aggregateOrderProduct();
 });
 
-// 手动执行（用于测试）
+// PM2 启动时保持进程运行
 if (require.main === module) {
-  aggregateOrderProduct()
-    .then(() => {
-      console.log("聚合任务执行完毕");
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error("聚合任务执行失败:", error);
-      process.exit(1);
-    });
+  // 设置 PM2 就绪信号
+  if (process.send) {
+    process.send('ready');
+  }
+
+  console.log("订单商品聚合任务已启动，等待定时触发...");
+
+  // 保持进程运行，不让进程退出
+  // node-cron 定时任务会持续运行
+  process.on('SIGINT', () => {
+    console.log('\n收到退出信号，正在关闭...');
+    process.exit(0);
+  });
+
+  process.on('SIGTERM', () => {
+    console.log('\n收到终止信号，正在关闭...');
+    process.exit(0);
+  });
 }
 
 module.exports = { aggregateOrderProduct };

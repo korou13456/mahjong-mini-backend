@@ -5,7 +5,8 @@ module.exports = {
       name: "sales-aggregate",
       script: "./scripts/sales-aggregate/index.js",
       instances: 1,
-      autorestart: true,
+      exec_mode: "fork",
+      autorestart: false,
       watch: false,
       max_memory_restart: "500M",
       env: {
@@ -14,13 +15,18 @@ module.exports = {
       error_file: "./logs/sales-aggregate-error.log",
       out_file: "./logs/sales-aggregate-out.log",
       log_file: "./logs/sales-aggregate-combined.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
       time: true,
+      // 保持进程运行，不因为脚本执行完成而退出
+      wait_ready: false,
+      kill_timeout: 5000,
     },
     {
       name: "order-product-aggregate",
       script: "./scripts/order-product-aggregate/index.js",
       instances: 1,
-      autorestart: true,
+      exec_mode: "fork",
+      autorestart: false,
       watch: false,
       max_memory_restart: "500M",
       env: {
@@ -29,7 +35,11 @@ module.exports = {
       error_file: "./logs/order-product-aggregate-error.log",
       out_file: "./logs/order-product-aggregate-out.log",
       log_file: "./logs/order-product-aggregate-combined.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
       time: true,
+      // 保持进程运行，不因为脚本执行完成而退出
+      wait_ready: false,
+      kill_timeout: 5000,
     },
   ],
 };
