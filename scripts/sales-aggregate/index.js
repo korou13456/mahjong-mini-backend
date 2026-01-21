@@ -127,12 +127,29 @@ cron.schedule("0 0 * * *", async () => {
 
 // PM2 启动时保持进程运行
 if (require.main === module) {
-  // 设置 PM2 就绪信号
-  if (process.send) {
-    process.send('ready');
-  }
+  // 检查是否是 PM2 运行环境
+  const isPM2 = process.env.pm_id !== undefined;
 
-  console.log("销售报表聚合任务已启动，等待定时触发...");
+  if (isPM2) {
+    // PM2 环境：设置就绪信号并保持运行，等待定时触发
+    if (process.send) {
+      process.send('ready');
+    }
+    console.log("销售报表聚合任务已启动（PM2模式），等待定时触发...");
+  } else {
+    // 本地直接运行：立即执行一次
+    console.log("销售报表聚合任务（本地模式），立即执行...");
+    aggregateSalesReport()
+      .then(() => {
+        console.log("聚合任务执行完毕");
+        process.exit(0);
+      })
+      .catch((error) => {
+        console.error("聚合任务执行失败:", error);
+        process.exit(1);
+      });
+    return; // 提前返回，不执行下面的信号监听
+  }
 
   // 保持进程运行，不让进程退出
   // node-cron 定时任务会持续运行

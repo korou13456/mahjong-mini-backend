@@ -29,6 +29,7 @@ async function aggregateOrderProduct() {
         department,
         staff_name,
         SUM(quantity) as quantity,
+        COUNT(DISTINCT order_id) as order_count,
         SUM(price * quantity) as price
       FROM order_product_record
       WHERE purchase_date_china >= ? AND status = 1
@@ -59,14 +60,15 @@ async function aggregateOrderProduct() {
         item.department,
         item.staff_name,
         item.quantity,
+        item.order_count,
         item.price,
       ]);
 
-      const placeholders = batch.map(() => "(?, ?, ?, ?, ?, ?, ?)").join(", ");
+      const placeholders = batch.map(() => "(?, ?, ?, ?, ?, ?, ?, ?)").join(", ");
 
       await db.query(
         `INSERT INTO order_product_aggregate
-         (data_time, category, variation, department, staff_name, quantity, price)
+         (data_time, category, variation, department, staff_name, quantity, order_count, price)
          VALUES ${placeholders}`,
         values
       );
@@ -93,12 +95,29 @@ cron.schedule("0 19 * * *", async () => {
 
 // PM2 启动时保持进程运行
 if (require.main === module) {
-  // 设置 PM2 就绪信号
-  if (process.send) {
-    process.send('ready');
-  }
+  // 检查是否是 PM2 运行环境
+  const isPM2 = process.env.pm_id !== undefined;
 
-  console.log("订单商品聚合任务已启动，等待定时触发...");
+  if (isPM2) {
+    // PM2 环境：设置就绪信号并保持运行，等待定时触发
+    if (process.send) {
+      process.send('ready');
+    }
+    console.log("订单商品聚合任务已启动（PM2模式），等待定时触发...");
+  } else {
+    // 本地直接运行：立即执行一次
+    console.log("订单商品聚合任务（本地模式），立即执行...");
+    aggregateOrderProduct()
+      .then(() => {
+        console.log("聚合任务执行完毕");
+        process.exit(0);
+      })
+      .catch((error) => {
+        console.error("聚合任务执行失败:", error);
+        process.exit(1);
+      });
+    return; // 提前返回，不执行下面的信号监听
+  }
 
   // 保持进程运行，不让进程退出
   // node-cron 定时任务会持续运行
