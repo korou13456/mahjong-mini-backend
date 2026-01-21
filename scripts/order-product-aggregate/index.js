@@ -85,7 +85,7 @@ async function aggregateOrderProduct() {
 }
 
 // 每天 00:00 执行聚合
-cron.schedule("0 0 * * *", async () => {
+cron.schedule("0 19 * * *", async () => {
   console.log("定时任务触发: 订单商品聚合");
   await aggregateOrderProduct();
 });
