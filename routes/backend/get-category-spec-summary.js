@@ -55,6 +55,7 @@ function calculateBasePrice(item, category) {
   const factoryPrice = getFactoryPrice(category, item.specification);
   const avgShippingCost = parseFloat(item.avg_shipping_cost) || 0;
   const avgPlatformSubsidy = parseFloat(item.total_platform_subsidy) || 0;
+  const avgPlatformPenalty = parseFloat(item.total_platform_penalty) || 0;
   const avgReturnLoss = parseFloat(item.total_return_loss) || 0;
   const avgResendLoss = parseFloat(item.total_resend_loss) || 0;
 
@@ -63,7 +64,8 @@ function calculateBasePrice(item, category) {
     avgShippingCost * -1 +
     avgReturnLoss * -1 -
     avgResendLoss -
-    avgPlatformSubsidy
+    avgPlatformSubsidy -
+    avgPlatformPenalty
   );
 }
 
@@ -89,6 +91,7 @@ function buildQuery(category, startDateStr, endDateStr, extraFilters) {
       specification,
       SUM(shipping_cost)/SUM(NULLIF(sales_volume, 0)) as avg_shipping_cost,
       SUM(platform_subsidy)/SUM(NULLIF(sales_volume, 0)) as total_platform_subsidy,
+      SUM(platform_penalty)/SUM(NULLIF(sales_volume, 0)) as total_platform_penalty,
       SUM(return_loss)/SUM(NULLIF(sales_volume, 0)) as total_return_loss,
       SUM(resend_loss)/SUM(NULLIF(sales_volume, 0)) as total_resend_loss
     FROM sales_report_daily
@@ -174,6 +177,7 @@ async function getCategorySpecSummary(req, res) {
       const factoryPrice = getFactoryPrice(category, item.specification);
       const avgShippingCost = parseFloat(item.avg_shipping_cost) || 0;
       const avgPlatformSubsidy = parseFloat(item.total_platform_subsidy) || 0;
+      const avgPlatformPenalty = parseFloat(item.total_platform_penalty) || 0;
       const avgReturnLoss = parseFloat(item.total_return_loss) || 0;
       const avgResendLoss = parseFloat(item.total_resend_loss) || 0;
       const personalBasePrice =
@@ -181,7 +185,8 @@ async function getCategorySpecSummary(req, res) {
         avgShippingCost * -1 +
         avgReturnLoss * -1 -
         avgResendLoss -
-        avgPlatformSubsidy;
+        avgPlatformSubsidy -
+        avgPlatformPenalty;
 
       return {
         category: item.category,
@@ -191,6 +196,7 @@ async function getCategorySpecSummary(req, res) {
         ).toFixed(4)}`,
         shipping_cost: `$${avgShippingCost.toFixed(4)}`,
         platform_subsidy: `$${avgPlatformSubsidy.toFixed(4)}`,
+        platform_penalty: `$${avgPlatformPenalty.toFixed(4)}`,
         return_loss: `$${avgReturnLoss.toFixed(4)}`,
         resend_loss: `$${avgResendLoss.toFixed(4)}`,
         personal_base_price:
