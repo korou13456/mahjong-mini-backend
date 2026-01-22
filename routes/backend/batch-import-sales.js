@@ -33,6 +33,7 @@ async function batchImportSales(req, res) {
         salesAmount,
         shippingCost,
         platformSubsidy,
+        platformPenalty,
         returnLoss
       } = item;
 
@@ -51,6 +52,7 @@ async function batchImportSales(req, res) {
         Number(salesAmount) || 0,
         Number(shippingCost) || 0,
         Number(platformSubsidy) || 0,
+        Number(platformPenalty) || 0,
         Number(returnLoss) || 0
       ]);
     }
@@ -82,6 +84,7 @@ async function batchImportSales(req, res) {
         sales_amount,
         shipping_cost,
         platform_subsidy,
+        platform_penalty,
         return_loss
       )
       VALUES ?
@@ -96,6 +99,7 @@ async function batchImportSales(req, res) {
         sales_amount = VALUES(sales_amount),
         shipping_cost = VALUES(shipping_cost),
         platform_subsidy = VALUES(platform_subsidy),
+        platform_penalty = VALUES(platform_penalty),
         return_loss = VALUES(return_loss),
         updated_at = CURRENT_TIMESTAMP
     `;
