@@ -118,6 +118,7 @@ async function getSalesDaily(req, res) {
         sales_amount,
         shipping_cost,
         platform_subsidy,
+        platform_penalty,
         return_loss,
         resend_loss
       FROM sales_report_daily
@@ -134,6 +135,7 @@ async function getSalesDaily(req, res) {
         SUM(sales_amount) as total_sales_amount,
         SUM(shipping_cost) as total_shipping_cost,
         SUM(platform_subsidy) as total_platform_subsidy,
+        SUM(platform_penalty) as total_platform_penalty,
         SUM(return_loss) as total_return_loss,
         SUM(resend_loss) as total_resend_loss
       FROM sales_report_daily
@@ -174,6 +176,7 @@ async function getSalesDaily(req, res) {
           sales_amount: parseFloat(summary[0].total_sales_amount) || 0,
           shipping_cost: parseFloat(summary[0].total_shipping_cost) || 0,
           platform_subsidy: parseFloat(summary[0].total_platform_subsidy) || 0,
+          platform_penalty: parseFloat(summary[0].total_platform_penalty) || 0,
           return_loss: parseFloat(summary[0].total_return_loss) || 0,
           resend_loss: parseFloat(summary[0].total_resend_loss) || 0,
         },
