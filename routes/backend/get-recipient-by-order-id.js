@@ -1,4 +1,4 @@
-// 根据订单ID查询收件人信息
+// 根据订单ID查询订单信息
 const db = require("../../config/database");
 
 async function getRecipientByOrderId(req, res) {
@@ -12,12 +12,27 @@ async function getRecipientByOrderId(req, res) {
       });
     }
 
-    // 查询该订单ID下的所有收件人信息（去重）
+    // 查询该订单ID下的所有订单商品信息
     const [results] = await db.query(
-      `SELECT DISTINCT order_id, recipient_name, order_item_id
+      `SELECT
+        id,
+        order_id,
+        recipient_name,
+        order_item_id,
+        category,
+        variation,
+        quantity,
+        price,
+        department,
+        staff_name,
+        status,
+        purchase_date_america,
+        purchase_date_china,
+        created_at,
+        updated_at
        FROM order_product_record
        WHERE order_id = ?
-       AND status = 1`,
+       ORDER BY id`,
       [order_id]
     );
 
@@ -27,7 +42,7 @@ async function getRecipientByOrderId(req, res) {
       data: results,
     });
   } catch (error) {
-    console.error("查询收件人信息失败:", error);
+    console.error("查询订单信息失败:", error);
     res.status(500).json({
       code: 500,
       message: "服务器错误",
