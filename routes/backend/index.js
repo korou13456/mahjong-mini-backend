@@ -21,13 +21,13 @@ router.post("/change-password", backendAuth, require("./change-password"));
 router.post(
   "/batch-import-sales",
   backendAuth,
-  require("./batch-import-sales")
+  require("./batch-import-sales"),
 );
 // 批量导入订单
 router.post(
   "/batch-import-orders",
   backendAuth,
-  require("./batch-import-orders")
+  require("./batch-import-orders"),
 );
 // 获取运营日报数据
 router.get("/sales-daily", backendAuth, require("./get-sales-daily"));
@@ -37,19 +37,19 @@ router.get("/sales-weekly", backendAuth, require("./get-sales-weekly"));
 router.get(
   "/category-spec-summary",
   backendAuth,
-  require("./get-category-spec-summary")
+  require("./get-category-spec-summary"),
 );
 // 获取订单商品聚合数据
 router.get(
   "/order-product-aggregate",
   backendAuth,
-  require("./get-order-product-aggregate")
+  require("./get-order-product-aggregate"),
 );
 // 根据订单ID查询收件人信息
 router.get(
   "/recipient-by-order-id",
   backendAuth,
-  require("./get-recipient-by-order-id")
+  require("./get-recipient-by-order-id"),
 );
 // 获取管理员用户列表
 router.get("/admin-users", backendAuth, require("./get-admin-users"));
@@ -65,7 +65,10 @@ router.use("/inventory_doormat", require("./inventory_management/doormat"));
 router.use("/inventory_hat", require("./inventory_management/hat"));
 router.use("/inventory_curtain", require("./inventory_management/curtain"));
 router.use("/inventory_mousepad", require("./inventory_management/mousepad"));
-router.use("/inventory_sweatshirt", require("./inventory_management/sweatshirt"));
+router.use(
+  "/inventory_sweatshirt",
+  require("./inventory_management/sweatshirt"),
+);
 
 // 其他后台接口可以继续添加
 // router.get('/users', backendAuth, require('./users'));
