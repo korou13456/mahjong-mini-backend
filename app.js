@@ -42,6 +42,9 @@ if (!fs.existsSync(uploadDir)) {
 // 静态资源托管
 app.use("/uploads", express.static(uploadDir));
 
+// 托管爬取控制台HTML
+app.use("/crawler-admin", express.static(path.join(__dirname, "scripts", "product-sales-crawler", "admin.html")));
+
 // 挂载上传路由
 app.use("/api/upload", require("./routes/upload"));
 
@@ -55,6 +58,17 @@ app.use("/api/backend", require("./routes/backend"));
 // 启用微信 API 安全校验（仅生产环境有效，且当请求头存在时生效）
 app.use(require("./middleware/wechatApiSecurity")());
 app.use("/api/mahjong", require("./routes/mahjong"));
+
+// 挂载商品销量爬取路由
+app.use("/api/crawl", require("./routes/product-sales-crawler"));
+
+// 挂载商品销量API路由
+app.use("/api/backend", require("./routes/product-sales-api"));
+
+// 托管爬取控制台HTML
+app.use("/crawler-admin", (req, res) => {
+  res.sendFile(path.join(__dirname, "scripts", "product-sales-crawler", "admin.html"));
+});
 
 // 根路由测试
 app.get("/", (req, res) => {

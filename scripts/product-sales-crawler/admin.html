@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>商品销量数据爬取控制台</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+    .header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+    .controls {
+      padding: 30px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e9ecef;
+    }
+    .control-group {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
+    .control-group label {
+      font-weight: 600;
+      color: #495057;
+      min-width: 80px;
+    }
+    .control-group input[type="number"],
+    .control-group input[type="text"] {
+      padding: 10px 15px;
+      border: 2px solid #dee2e6;
+      border-radius: 6px;
+      font-size: 14px;
+      min-width: 120px;
+      transition: border-color 0.3s;
+    }
+    .control-group input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    .btn {
+      padding: 12px 30px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .btn-success {
+      background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+      color: white;
+    }
+    .btn-success:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(86, 171, 47, 0.4);
+    }
+    .btn-warning {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+    }
+    .status {
+      padding: 20px 30px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e9ecef;
+    }
+    .status-item {
+      display: inline-block;
+      margin-right: 30px;
+      padding: 8px 15px;
+      background: white;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+    .status-item strong {
+      color: #667eea;
+    }
+    .log-container {
+      padding: 30px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    .log-container::-webkit-scrollbar {
+      width: 8px;
+    }
+    .log-container::-webkit-scrollbar-track {
+      background: #2d2d2d;
+    }
+    .log-container::-webkit-scrollbar-thumb {
+      background: #555;
+      border-radius: 4px;
+    }
+    .log-entry {
+      margin-bottom: 5px;
+      padding: 5px 0;
+      border-bottom: 1px solid #2d2d2d;
+    }
+    .log-info { color: #4fc3f7; }
+    .log-success { color: #69f0ae; }
+    .log-warning { color: #ffd54f; }
+    .log-error { color: #ff5252; }
+    .timestamp {
+      color: #757575;
+      margin-right: 10px;
+    }
+    .progress-bar {
+      height: 4px;
+      background: #e9ecef;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .running .progress-fill {
+      animation: pulse 1s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="progress-bar">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+
+  <div class="container">
+    <div class="header">
+      <h1>🛒 商品销量数据爬取控制台</h1>
+      <p>自动获取商品历史销量数据并同步到数据库</p>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <label for="startIndex">起始位置:</label>
+        <input type="number" id="startIndex" value="0" min="0" placeholder="从第几个开始">
+      </div>
+      <div class="control-group">
+        <button class="btn btn-primary" id="startBtn" onclick="startCrawl()">开始爬取</button>
+        <button class="btn btn-warning" id="stopBtn" onclick="stopCrawl()" disabled>停止爬取</button>
+        <button class="btn btn-success" onclick="clearLog()">清空日志</button>
+      </div>
+    </div>
+
+    <div class="status">
+      <div class="status-item">
+        总商品: <strong id="totalProducts">0</strong>
+      </div>
+      <div class="status-item">
+        已处理: <strong id="processedProducts">0</strong>
+      </div>
+      <div class="status-item">
+        成功: <strong id="successCount">0</strong>
+      </div>
+      <div class="status-item">
+        失败: <strong id="errorCount">0</strong>
+      </div>
+      <div class="status-item">
+        状态: <strong id="statusText">待机中</strong>
+      </div>
+    </div>
+
+    <div class="log-container" id="logContainer">
+      <div class="log-entry log-info">
+        <span class="timestamp">[系统]</span>控制台已就绪，等待操作...
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let isRunning = false;
+    let shouldStop = false;
+    let crawlState = {
+      total: 0,
+      processed: 0,
+      success: 0,
+      error: 0
+    };
+
+    const API_URL = "https://api.temaishuju.com/api/v1/goods/card";
+    const REGION = "211";
+
+    function addLog(message, type = 'info') {
+      const logContainer = document.getElementById('logContainer');
+      const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+      const logEntry = document.createElement('div');
+      logEntry.className = `log-entry log-${type}`;
+      logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span>${message}`;
+      logContainer.appendChild(logEntry);
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    function updateStatus(data) {
+      if (data.totalProducts !== undefined) document.getElementById('totalProducts').textContent = data.totalProducts;
+      if (data.processedProducts !== undefined) document.getElementById('processedProducts').textContent = data.processedProducts;
+      if (data.successCount !== undefined) document.getElementById('successCount').textContent = data.successCount;
+      if (data.errorCount !== undefined) document.getElementById('errorCount').textContent = data.errorCount;
+      if (data.statusText !== undefined) document.getElementById('statusText').textContent = data.statusText;
+    }
+
+    function updateProgress(current, total) {
+      const progress = total > 0 ? (current / total) * 100 : 0;
+      document.getElementById('progressFill').style.width = `${progress}%`;
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function fetchProductSales(goodsId, mallId) {
+      const url = `${API_URL}?goodsId=${goodsId}&mallId=${mallId}&region=${REGION}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Accept': '*/*',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36'
+        }
+      });
+
+      return response.json();
+    }
+
+    async function getAllProducts() {
+      const response = await fetch('/api/backend/products');
+      const result = await response.json();
+      return result.data || [];
+    }
+
+    async function upsertSalesData(salesData) {
+      const response = await fetch('/api/backend/product-sales-daily', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ salesData })
+      });
+      return response.json();
+    }
+
+    async function startCrawl() {
+      console.log('startCrawl 被调用');
+      console.log('startIndex input:', document.getElementById('startIndex'));
+
+      if (isRunning) {
+        addLog('爬取任务正在进行中，请勿重复启动', 'warning');
+        return;
+      }
+
+      const startIndex = parseInt(document.getElementById('startIndex').value) || 0;
+      console.log('解析后的 startIndex:', startIndex);
+
+      if (startIndex < 0) {
+        addLog('起始位置不能为负数', 'error');
+        return;
+      }
+
+      isRunning = true;
+      shouldStop = false;
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('stopBtn').disabled = false;
+      document.body.classList.add('running');
+
+      try {
+        addLog(`开始爬取，从第 ${startIndex} 个商品开始...`, 'info');
+        updateStatus({ statusText: '运行中' });
+
+        // 获取所有商品
+        const products = await getAllProducts();
+
+        if (products.length === 0) {
+          addLog('没有需要处理的商品', 'warning');
+          stopCrawl();
+          return;
+        }
+
+        updateStatus({ 
+          totalProducts: products.length,
+          statusText: '运行中' 
+        });
+
+        addLog(`找到 ${products.length} 个商品，从第 ${startIndex} 个开始处理`, 'info');
+
+        // 逐个处理商品
+        for (let i = startIndex; i < products.length; i++) {
+          if (shouldStop) {
+            addLog('任务已手动停止', 'warning');
+            break;
+          }
+
+          const product = products[i];
+          crawlState.processed = i - startIndex + 1;
+
+          try {
+            addLog(`[${crawlState.processed}/${products.length}] 处理商品: ${product.title} (ID: ${product.product_id})`, 'info');
+
+            const result = await fetchProductSales(product.product_id, product.shop_id);
+
+            // 检测反爬JS
+            if (typeof result === 'string' && result.startsWith('<script')) {
+              addLog(`商品 ${product.product_id} 接口返回反爬JS，跳过`, 'warning');
+              crawlState.error++;
+              updateStatus({ 
+                processedProducts: crawlState.processed,
+                successCount: crawlState.success,
+                errorCount: crawlState.error
+              });
+              updateProgress(crawlState.processed, products.length);
+              await sleep(2000);
+              continue;
+            }
+
+            if (result.code !== 0 || !result.data?.history) {
+              addLog(`商品 ${product.product_id} 无销量历史数据`, 'warning');
+              crawlState.error++;
+              updateStatus({ 
+                processedProducts: crawlState.processed,
+                successCount: crawlState.success,
+                errorCount: crawlState.error
+              });
+              updateProgress(crawlState.processed, products.length);
+              await sleep(2000);
+              continue;
+            }
+
+            // 映射销量数据
+            const salesData = result.data.history.map(item => {
+              const createDate = new Date(item.createTime);
+              const orderDate = createDate.toISOString().split('T')[0];
+              return {
+                product_id: product.id,
+                order_date: orderDate,
+                order_count: item.daySold || 0
+              };
+            });
+
+            // 过滤最近7天
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 6);
+            const startDateStr = startDate.toISOString().split('T')[0];
+            const endDateStr = endDate.toISOString().split('T')[0];
+
+            const recentSalesData = salesData.filter(
+              item => item.order_date >= startDateStr && item.order_date <= endDateStr
+            );
+
+            if (recentSalesData.length === 0) {
+              addLog(`商品 ${product.product_id} 最近7天无销量数据`, 'warning');
+              updateStatus({ 
+                processedProducts: crawlState.processed,
+                successCount: crawlState.success,
+                errorCount: crawlState.error
+              });
+              updateProgress(crawlState.processed, products.length);
+              await sleep(2000);
+              continue;
+            }
+
+            // 插入数据库
+            const upsertResult = await upsertSalesData(recentSalesData);
+
+            if (upsertResult.success) {
+              addLog(`商品 ${product.product_id} 处理完成，插入了 ${recentSalesData.length} 条数据`, 'success');
+              crawlState.success++;
+            } else {
+              addLog(`商品 ${product.product_id} 数据保存失败: ${upsertResult.message}`, 'error');
+              crawlState.error++;
+            }
+
+            updateStatus({ 
+              processedProducts: crawlState.processed,
+              successCount: crawlState.success,
+              errorCount: crawlState.error
+            });
+            updateProgress(crawlState.processed, products.length);
+
+            // 延迟
+            await sleep(2000);
+          } catch (error) {
+            addLog(`处理商品 ${product.product_id} 失败: ${error.message}`, 'error');
+            crawlState.error++;
+            updateStatus({ 
+              processedProducts: crawlState.processed,
+              successCount: crawlState.success,
+              errorCount: crawlState.error
+            });
+          }
+        }
+
+        addLog(`爬取完成！总共处理 ${products.length} 个商品，成功 ${crawlState.success} 个，失败 ${crawlState.error} 个`, 'success');
+        stopCrawl();
+      } catch (error) {
+        addLog(`爬取任务执行失败: ${error.message}`, 'error');
+        stopCrawl();
+      }
+    }
+
+    function stopCrawl() {
+      if (!isRunning) return;
+      shouldStop = true;
+      isRunning = false;
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+      document.body.classList.remove('running');
+      updateStatus({ statusText: '已停止' });
+    }
+
+    function clearLog() {
+      const logContainer = document.getElementById('logContainer');
+      logContainer.innerHTML = '';
+      addLog('日志已清空', 'info');
+    }
+
+    // 页面卸载时提示
+    window.addEventListener('beforeunload', (e) => {
+      if (isRunning) {
+        e.preventDefault();
+        e.returnValue = '爬取任务正在进行中，确定要离开吗？';
+        return e.returnValue;
+      }
+    });
+  </script>
+</body>
+</html>
