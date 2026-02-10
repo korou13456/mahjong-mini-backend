@@ -39,6 +39,8 @@ router.get(
   backendAuth,
   require("./get-category-spec-summary"),
 );
+// 获取月度提成报表
+router.get("/month-report", backendAuth, require("./get-month-report"));
 // 获取订单商品聚合数据
 router.get(
   "/order-product-aggregate",
