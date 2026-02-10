@@ -25,6 +25,8 @@
     "thunt-blanket-crawler:prod": "NODE_ENV=production node scripts/thunt-blanket-crawler/index.js",
     "product-sales-crawler": "node scripts/product-sales-crawler/index.js",
     "product-sales-crawler:prod": "NODE_ENV=production node scripts/product-sales-crawler/index.js",
+    "sales-commission": "node scripts/sales-commission-aggregate/index.js",
+    "sales-commission:prod": "NODE_ENV=production node scripts/sales-commission-aggregate/index.js",
     "pm2:start": "pm2 start ecosystem.config.js",
     "pm2:stop": "pm2 stop ecosystem.config.js",
     "pm2:restart": "pm2 restart ecosystem.config.js",
