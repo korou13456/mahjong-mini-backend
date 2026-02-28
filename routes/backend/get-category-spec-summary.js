@@ -37,6 +37,18 @@ function getFactoryPrice(category, specification) {
       "30*80": 20,
       "80*30": 20,
     },
+    鼠标垫: {
+      "30*80": 20,
+      "80*30": 20,
+    },
+    热转印贴: {
+      "4*4": 7,
+      "6*6": 7,
+      "8*8": 7,
+      "12*12": 7,
+      "18*18": 7,
+      "23*23": 7,
+    },
   };
 
   const categoryPrice = FACTORY_PRICES[category];
@@ -139,11 +151,11 @@ async function getCategorySpecSummary(req, res) {
       await Promise.all([
         db.query(
           buildQuery(category, startDateStr, endDateStr, {}).sql,
-          buildQuery(category, startDateStr, endDateStr, {}).params
+          buildQuery(category, startDateStr, endDateStr, {}).params,
         ),
         db.query(
           buildQuery(category, startDateStr, endDateStr, { department }).sql,
-          buildQuery(category, startDateStr, endDateStr, { department }).params
+          buildQuery(category, startDateStr, endDateStr, { department }).params,
         ),
         db.query(
           buildQuery(category, startDateStr, endDateStr, {
@@ -153,18 +165,18 @@ async function getCategorySpecSummary(req, res) {
           buildQuery(category, startDateStr, endDateStr, {
             staff_name,
             department,
-          }).params
+          }).params,
         ),
       ]);
 
     const companyBasePrices = processQueryResults(
       companyQueryResult[0],
-      category
+      category,
     );
     const deptBasePrices = processQueryResults(deptQueryResult[0], category);
 
     const [categories] = await db.query(
-      `SELECT DISTINCT category FROM sales_report_daily WHERE category IS NOT NULL ORDER BY category`
+      `SELECT DISTINCT category FROM sales_report_daily WHERE category IS NOT NULL ORDER BY category`,
     );
 
     // 如果个人数据为空，使用公司数据

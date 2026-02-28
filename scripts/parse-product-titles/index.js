@@ -2,7 +2,7 @@ const path = require("path");
 require("dotenv").config({
   path: path.resolve(
     process.cwd(),
-    process.env.NODE_ENV === "production" ? ".env.production" : ".env"
+    process.env.NODE_ENV === "production" ? ".env.production" : ".env",
   ),
 });
 
@@ -14,67 +14,99 @@ if (!DEEPSEEK_API_KEY) {
   throw new Error("DEEPSEEK_API_KEY 未配置");
 }
 
-/**
- * 调用 DeepSeek 解析商品标题
- * 强制：一行 = 一个最小语义单元
- */
-async function callDeepSeek(title) {
-  const prompt = `
-    Analyze the product title and extract keywords.
+/* ================================
+   🔥 批量 Prompt 构建
+================================ */
 
-    Product Title:
-    ${title}
+function buildBatchPrompt(products) {
+  const basePrompt = `
+      You are a strict e-commerce product title parser.
 
-    Rules:
-    1. Extract keywords only (NO arrays, NO explanations, NO markdown)
-    2. Each line must strictly follow this format:
-      <type>|<keyword>|<normalized_keyword>
-    3. Do NOT invent keywords that are not explicitly implied by the title
-    4. Avoid duplicates and semantic overlaps
+      IMPORTANT:
+      The core product category is "blanket".
+      DO NOT extract or output:
+      - blanket
+      - throw blanket
+      - fleece blanket
+      - bed blanket
+      - any phrase containing the word "blanket"
 
-    Types definition (VERY IMPORTANT):
-    - theme: Core emotional / conceptual theme (e.g. personalized, bear, love, memorial)
-      ❌ Product types or physical items can NOT be themes
-      ❌ blanket / throw blanket / fleece blanket are NOT themes
-    - attribute: Physical characteristics, product types, materials, print methods, personalization forms
-      ✅ blanket / throw blanket / photo blanket / digital print / custom name
-    - usage: Usage scenarios or places
-    - audience: Target people or relationships
+      Task:
+      Analyze MULTIPLE product titles and extract structured keywords.
 
-    Special rules:
-    - For titles like "personalized photo blanket", the theme MUST be:
-      theme|personalized|personalized
-    - blanket / throw blanket MUST be classified as attribute, NOT theme
-    - If no clear emotional or conceptual theme exists, DO NOT force a theme
+      INPUT FORMAT:
+      Each title is prefixed with an index number.
 
-    Normalization rules:
-    - Use singular nouns
-    - Merge similar meanings (e.g. teddy bear / sleeping bear -> bear)
-    - Use snake_case when needed
-    - Normalized keyword should be lowercase
+      Output format:
 
-    Example:
-    theme|personalized|personalized
-    attribute|throw blanket|throw_blanket
-    attribute|photo blanket|photo_blanket
-    attribute|digital print|digital_print
-    usage|living room|living_room
-    audience|family|family
+      #<index>
+      type|keyword|normalized_keyword
 
-    Return ONLY the lines above.
-    `;
+      Rules:
+      1. NO explanations.
+      2. NO markdown.
+      3. DO NOT invent information.
+      4. One line = one minimal semantic unit.
+      5. Avoid duplicates.
+      6. Skip meaningless product base words.
+      7. DO NOT output any keyword containing the word "blanket".
 
+      Strict type definitions:
+
+      THEME:
+      - Only concrete subjects or conceptual themes.
+      - Examples: bear, rabbit, christmas, memorial, galaxy
+      - NOT quality words.
+
+      ATTRIBUTE:
+      - Material (faux rabbit fur, fleece)
+      - Physical traits (soft, fluffy, durable)
+      - Quality (high_quality)
+      - Functional (machine washable)
+      - Print/technique
+
+      USAGE:
+      - Physical usage places only (bed, sofa, travel)
+
+     AUDIENCE:
+      - Explicit target people only.
+      - Examples: kids, women, men, adult, couple, mom, dad, family
+      - DO NOT output generic marketing words like:
+        gift, present, perfect gift, great gift
+      - If no clear target people exist, DO NOT output audience.
+
+      Normalization:
+      - lowercase
+      - singular noun
+      - snake_case
+      - remove redundant adjectives
+
+      Now analyze:
+      `;
+
+  let content = "";
+  products.forEach((p, index) => {
+    content += `#${index}\n${p.title}\n\n`;
+  });
+
+  return basePrompt + content;
+}
+
+/* ================================
+   🔥 调用 DeepSeek
+================================ */
+
+async function callDeepSeek(prompt) {
   const data = JSON.stringify({
     model: "deepseek-chat",
     messages: [
       {
         role: "system",
-        content:
-          "你是一个专业的商品标题语义解析助手，只输出严格格式化的关键词结果。",
+        content: "你是一个严格的商品标题结构化解析助手，只输出指定格式内容。",
       },
       { role: "user", content: prompt },
     ],
-    temperature: 0.2,
+    temperature: 0.1,
   });
 
   return new Promise((resolve, reject) => {
@@ -109,49 +141,47 @@ async function callDeepSeek(title) {
   });
 }
 
-/**
- * 解析 AI 返回结果
- * 每一行 -> 一条入库记录
- */
-function parseDeepSeekResult(content) {
-  const keywords = [];
+/* ================================
+   🔥 解析批量返回
+================================ */
 
-  const lines = content
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l && l.includes("|"));
+function parseBatchResult(content) {
+  const result = {};
+  let currentIndex = null;
 
-  for (const line of lines) {
-    const first = line.indexOf("|");
-    const last = line.lastIndexOf("|");
+  const lines = content.split("\n");
 
-    if (first === -1 || last === first) {
-      console.warn("⚠️ 非法 AI 行，已跳过:", line);
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    if (line.startsWith("#")) {
+      currentIndex = line.replace("#", "").trim();
+      result[currentIndex] = [];
       continue;
     }
 
-    const type = line.slice(0, first).trim();
-    const keyword = line.slice(first + 1, last).trim();
-    const normalizedKeyword = line
-      .slice(last + 1)
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "_");
+    if (!currentIndex || !line.includes("|")) continue;
 
-    keywords.push({
+    const [type, keyword, normalized] = line.split("|");
+
+    if (!type || !keyword || !normalized) continue;
+
+    result[currentIndex].push({
       category: "blanket",
-      keyword,
-      keywordType: type,
-      normalizedKeyword,
+      keyword: keyword.trim(),
+      keywordType: type.trim(),
+      normalizedKeyword: normalized.trim(),
     });
   }
 
-  return keywords;
+  return result;
 }
 
-/**
- * keyword_dimension 表：去重 + 插入
- */
+/* ================================
+   🔥 keyword_dimension 表
+================================ */
+
 async function getOrCreateKeyword({
   category,
   keywordType,
@@ -162,12 +192,9 @@ async function getOrCreateKeyword({
       `INSERT INTO keyword_dimension
        (category, keyword_type, normalized_keyword, created_at)
        VALUES (?, ?, ?, NOW())`,
-      [category, keywordType, normalizedKeyword]
+      [category, keywordType, normalizedKeyword],
     );
 
-    console.log(
-      `  ✅ 插入 keyword_dimension: ${normalizedKeyword} (id=${result.insertId})`
-    );
     return result.insertId;
   } catch (err) {
     if (err.code === "ER_DUP_ENTRY") {
@@ -175,127 +202,98 @@ async function getOrCreateKeyword({
         `SELECT id
          FROM keyword_dimension
          WHERE category = ? AND normalized_keyword = ?`,
-        [category, normalizedKeyword]
+        [category, normalizedKeyword],
       );
 
-      if (!rows.length) {
-        throw new Error(
-          `Duplicate keyword but not found: ${category} | ${normalizedKeyword}`
-        );
-      }
-
-      console.log(
-        `  ℹ️  已存在 keyword_dimension: ${normalizedKeyword} (id=${rows[0].id})`
-      );
-      return rows[0].id;
+      return rows[0]?.id;
     }
     throw err;
   }
 }
-/**
- * product_keyword_relation 表：去重 + 插入
- */
-async function insertProductKeywordRelation({
-  productId,
-  keywordId,
-  keyword,
-  source = "deepseekAI",
-}) {
-  try {
-    const [result] = await db.query(
-      `INSERT IGNORE INTO product_keyword_relation
-       (product_id, keyword_id, keyword, source, created_at)
-       VALUES (?, ?, ?, ?, NOW())`,
-      [productId, keywordId, keyword, source]
-    );
 
-    if (result.affectedRows > 0) {
-      console.log(
-        `  ✅ 插入 product_keyword_relation: product_id=${productId}, keyword_id=${keywordId}`
-      );
-    } else {
-      console.log(
-        `  ℹ️  已存在 product_keyword_relation: product_id=${productId}, keyword_id=${keywordId}`
-      );
-    }
-  } catch (err) {
-    console.error("❌ 插入 product_keyword_relation 失败:", err.message);
-  }
+/* ================================
+   🔥 product_keyword_relation 表
+================================ */
+
+async function insertProductKeywordRelation({ productId, keywordId, keyword }) {
+  await db.query(
+    `INSERT IGNORE INTO product_keyword_relation
+     (product_id, keyword_id, keyword, source, created_at)
+     VALUES (?, ?, ?, 'deepseek_ai', NOW())`,
+    [productId, keywordId, keyword],
+  );
 }
 
-/**
- * 主执行逻辑
- */
+/* ================================
+   🔥 主执行逻辑
+================================ */
+
 async function run() {
+  const batchSize = 10;
+
   const [products] = await db.query(
-    `SELECT product_id, title
-     FROM product_raw
+    `SELECT id, product_id, title
+     FROM product
      WHERE title IS NOT NULL
        AND title != ''
-       AND crawl_time = CURDATE()`
+       AND DATE(updated_at) = CURDATE()`,
   );
 
-  console.log(`读取到 ${products.length} 条【今日采集】商品`);
+  console.log(`读取到 ${products.length} 条商品`);
 
-  for (let i = 0; i < products.length; i++) {
-    const product = products[i];
+  for (let i = 0; i < products.length; i += batchSize) {
+    const batch = products.slice(i, i + batchSize);
 
-    console.log(`\n[${i + 1}/${products.length}] 商品 ${product.product_id}`);
-    console.log(product.title);
+    console.log(`\n处理批次 ${i / batchSize + 1}，共 ${batch.length} 条`);
+
+    const prompt = buildBatchPrompt(batch);
 
     let aiResult;
     try {
-      aiResult = await callDeepSeek(product.title);
+      aiResult = await callDeepSeek(prompt);
     } catch (err) {
-      console.error(
-        `❌ AI 调用失败 product_id=${product.product_id}:`,
-        err.message
-      );
+      console.error("AI 调用失败:", err.message);
       continue;
     }
 
-    console.log(aiResult, "!==>>aiResult");
+    const parsed = parseBatchResult(aiResult);
 
-    if (!aiResult || !aiResult.includes("|")) {
-      console.warn(`⚠️ AI 返回异常 product_id=${product.product_id}`);
-      continue;
-    }
+    for (let index in parsed) {
+      const product = batch[index];
+      const keywords = parsed[index];
 
-    const keywords = parseDeepSeekResult(aiResult);
+      if (!product || !keywords) continue;
 
-    for (const k of keywords) {
-      try {
-        const id = await getOrCreateKeyword(k);
-
-        await insertProductKeywordRelation({
-          productId: product.product_id,
-          keywordId: id,
-          keyword: k.keyword,
-          source: "deepseek ai",
-        });
-      } catch (error) {
-        console.error(
-          `❌ 关键词入库失败: product_id=${product.product_id}, ` +
-            `keyword=${k.keyword}, normalized=${k.normalizedKeyword}, ` +
-            `error=${error.message}`
+      console.log(`\n商品: ${product.title}`);
+      console.log("AI 解析结果:");
+      keywords.forEach((k) => {
+        console.log(
+          `  ${k.keywordType} | ${k.keyword} | ${k.normalizedKeyword}`,
         );
+      });
+      console.log("-".repeat(40));
+
+      for (const k of keywords) {
+        try {
+          const id = await getOrCreateKeyword(k);
+
+          await insertProductKeywordRelation({
+            productId: product.product_id,
+            keywordId: id,
+            keyword: k.keyword,
+          });
+        } catch (err) {
+          console.error(`关键词入库失败: ${k.normalizedKeyword}`, err.message);
+        }
       }
     }
 
-    // 节流
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 1200));
   }
 
-  console.log("\n✅ 今日商品全部解析完成");
+  console.log("\n✅ 全部解析完成");
 }
 
-/**
- * CLI 参数
- */
-const args = process.argv.slice(2);
-const limit = Number(args[0]) || 20;
-const offset = Number(args[1]) || 0;
-
-run(limit, offset)
+run()
   .then(() => process.exit(0))
   .catch(() => process.exit(1));
