@@ -22,7 +22,7 @@ async function getCurtainInventory(req, res) {
     const [inventory] = await db.query(
       `SELECT id, size_52_63, size_52_84, updated_at
        FROM curtain_inventory
-       LIMIT 1`
+       LIMIT 1`,
     );
 
     // 查询在路上数据（status=0）的聚合
@@ -31,7 +31,7 @@ async function getCurtainInventory(req, res) {
         COALESCE(SUM(size_52_63), 0) as size_52_63,
         COALESCE(SUM(size_52_84), 0) as size_52_84
        FROM curtain_inventory_record
-       WHERE status = 0`
+       WHERE status = 0`,
     );
 
     const transitData = transitResult[0] || {
@@ -41,9 +41,9 @@ async function getCurtainInventory(req, res) {
 
     // 查询15天前到5天前中间10天所有status=1的数据聚合
     const fifteenDaysAgo = new Date();
-    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 11);
     const fiveDaysAgo = new Date();
-    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 1);
 
     const [recentResult] = await db.query(
       `SELECT
@@ -53,7 +53,10 @@ async function getCurtainInventory(req, res) {
        WHERE status = 2
        AND record_date >= ?
        AND record_date <= ?`,
-      [fifteenDaysAgo.toISOString().split("T")[0], fiveDaysAgo.toISOString().split("T")[0]]
+      [
+        fifteenDaysAgo.toISOString().split("T")[0],
+        fiveDaysAgo.toISOString().split("T")[0],
+      ],
     );
 
     const recentData = recentResult[0] || {
@@ -75,7 +78,7 @@ async function getCurtainInventory(req, res) {
     // 查询总数
     const [totalResult] = await db.query(
       `SELECT COUNT(*) as total FROM curtain_inventory_record WHERE ${whereClause}`,
-      params
+      params,
     );
 
     const total = totalResult[0].total;
@@ -88,7 +91,7 @@ async function getCurtainInventory(req, res) {
        WHERE ${whereClause}
        ORDER BY record_date DESC, created_at DESC
        LIMIT ? OFFSET ?`,
-      [...params, limitNum, offset]
+      [...params, limitNum, offset],
     );
 
     res.json({
@@ -105,7 +108,11 @@ async function getCurtainInventory(req, res) {
         recent: recentData,
         records: records.map((record) => ({
           ...record,
-          image_urls: record.image_urls ? (typeof record.image_urls === "string" ? JSON.parse(record.image_urls) : record.image_urls) : [],
+          image_urls: record.image_urls
+            ? typeof record.image_urls === "string"
+              ? JSON.parse(record.image_urls)
+              : record.image_urls
+            : [],
         })),
         pagination: {
           page: pageNum,

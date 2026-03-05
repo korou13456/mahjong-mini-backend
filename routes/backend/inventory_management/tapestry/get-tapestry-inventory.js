@@ -22,7 +22,7 @@ async function getTapestryInventory(req, res) {
     const [inventory] = await db.query(
       `SELECT id, size_40_30, size_60_40, size_60_50, size_80_60, size_90_60, updated_at
        FROM tapestry_inventory
-       LIMIT 1`
+       LIMIT 1`,
     );
 
     // 查询在路上数据（status=0）的聚合
@@ -34,7 +34,7 @@ async function getTapestryInventory(req, res) {
         COALESCE(SUM(size_80_60), 0) as size_80_60,
         COALESCE(SUM(size_90_60), 0) as size_90_60
        FROM tapestry_inventory_record
-       WHERE status = 0`
+       WHERE status = 0`,
     );
 
     const transitData = transitResult[0] || {
@@ -47,9 +47,9 @@ async function getTapestryInventory(req, res) {
 
     // 查询15天前到5天前中间10天所有status=1的数据聚合
     const fifteenDaysAgo = new Date();
-    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 11);
     const fiveDaysAgo = new Date();
-    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 1);
 
     const [recentResult] = await db.query(
       `SELECT
@@ -62,7 +62,10 @@ async function getTapestryInventory(req, res) {
        WHERE status = 2
        AND record_date >= ?
        AND record_date <= ?`,
-      [fifteenDaysAgo.toISOString().split("T")[0], fiveDaysAgo.toISOString().split("T")[0]]
+      [
+        fifteenDaysAgo.toISOString().split("T")[0],
+        fiveDaysAgo.toISOString().split("T")[0],
+      ],
     );
 
     const recentData = recentResult[0] || {
@@ -87,7 +90,7 @@ async function getTapestryInventory(req, res) {
     // 查询总数
     const [totalResult] = await db.query(
       `SELECT COUNT(*) as total FROM tapestry_inventory_record WHERE ${whereClause}`,
-      params
+      params,
     );
 
     const total = totalResult[0].total;
@@ -100,7 +103,7 @@ async function getTapestryInventory(req, res) {
        WHERE ${whereClause}
        ORDER BY record_date DESC, created_at DESC
        LIMIT ? OFFSET ?`,
-      [...params, limitNum, offset]
+      [...params, limitNum, offset],
     );
 
     res.json({
@@ -120,7 +123,11 @@ async function getTapestryInventory(req, res) {
         recent: recentData,
         records: records.map((record) => ({
           ...record,
-          image_urls: record.image_urls ? (typeof record.image_urls === "string" ? JSON.parse(record.image_urls) : record.image_urls) : [],
+          image_urls: record.image_urls
+            ? typeof record.image_urls === "string"
+              ? JSON.parse(record.image_urls)
+              : record.image_urls
+            : [],
         })),
         pagination: {
           page: pageNum,
