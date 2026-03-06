@@ -37,10 +37,6 @@ function getFactoryPrice(category, specification) {
       "30*80": 20,
       "80*30": 20,
     },
-    鼠标垫: {
-      "30*80": 20,
-      "80*30": 20,
-    },
     热转印贴: {
       "4*4": 7,
       "6*6": 7,

@@ -29,6 +29,24 @@ router.post(
   backendAuth,
   require("./batch-import-orders"),
 );
+// 批量导入供应链明细
+router.post(
+  "/batch-import-supply-chain",
+  backendAuth,
+  require("./batch-import-supply-chain"),
+);
+// 批量导入财务交易明细
+router.post(
+  "/batch-import-finance-transaction",
+  backendAuth,
+  require("./batch-import-finance-transaction"),
+);
+// 批量导入订单详情
+router.post(
+  "/batch-import-order-detail",
+  backendAuth,
+  require("./batch-import-order-detail"),
+);
 // 获取运营日报数据
 router.get("/sales-daily", backendAuth, require("./get-sales-daily"));
 // 获取运营周报数据
