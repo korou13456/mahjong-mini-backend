@@ -25,6 +25,7 @@ module.exports = async (req, res) => {
           finance_time: item.finance_time,
           transaction_type: item.transaction_type,
           order_id: item.order_id,
+          order_item_id: item.order_item_id,
           sku_id: item.sku_id,
         });
       } else {
@@ -57,6 +58,7 @@ module.exports = async (req, res) => {
           finance_time: item.finance_time,
           transaction_type: item.transaction_type,
           order_id: item.order_id,
+          order_item_id: item.order_item_id,
           sku_id: item.sku_id,
         });
       } else {
@@ -80,6 +82,7 @@ module.exports = async (req, res) => {
         item.finance_time || null,
         item.transaction_type,
         item.order_id,
+        item.order_item_id || null,
         item.sku_id,
         item.ship_state,
         item.subtotal,
@@ -93,6 +96,7 @@ module.exports = async (req, res) => {
           finance_time,
           transaction_type,
           order_id,
+          order_item_id,
           sku_id,
           ship_state,
           subtotal,
@@ -111,6 +115,7 @@ module.exports = async (req, res) => {
           finance_time: item.finance_time,
           transaction_type: item.transaction_type,
           order_id: item.order_id,
+          order_item_id: item.order_item_id,
           sku_id: item.sku_id,
         })),
       );
