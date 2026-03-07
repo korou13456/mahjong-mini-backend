@@ -4,31 +4,43 @@ module.exports = async (req, res) => {
   try {
     const { data } = req.body;
 
-    if (!data || !Array.isArray(data) || data.length === 0) {
+    if (!Array.isArray(data) || data.length === 0) {
       return res.status(400).json({
         code: 400,
         message: "请提供有效的数据数组",
       });
     }
 
-    // 准备批量插入的数据
-    const values = data.map((item) => [
-      item.transaction_no,
-      (item.logistics_method || '').substring(0, 50),
-      item.tracking_no,
-      item.shipped_at || null,
-      item.business_no,
-      item.sales_platform,
-      item.store_name,
-      item.order_amount,
-      item.goods_amount,
-      item.handling_fee,
-      item.shipping_fee,
-      item.product_id,
-      item.product_name,
-      item.size,
-      item.quantity,
-    ]);
+    const values = new Array(data.length);
+    const transactionNos = new Array(data.length);
+
+    for (let i = 0; i < data.length; i++) {
+      const item = data[i];
+
+      const logisticsMethod = item.logistics_method
+        ? item.logistics_method.substring(0, 50)
+        : "";
+
+      values[i] = [
+        item.transaction_no,
+        logisticsMethod,
+        item.tracking_no,
+        item.shipped_at || null,
+        item.business_no,
+        item.sales_platform,
+        item.store_name,
+        item.order_amount,
+        item.goods_amount,
+        item.handling_fee,
+        item.shipping_fee,
+        item.product_id,
+        item.product_name,
+        item.size,
+        item.quantity,
+      ];
+
+      transactionNos[i] = item.transaction_no;
+    }
 
     const sql = `
       INSERT INTO supply_chain_detail (
@@ -67,30 +79,31 @@ module.exports = async (req, res) => {
 
     const [result] = await db.query(sql, [values]);
 
-    // 找出未成功插入的记录（可能是重复或失败）
-    const existingTransactions = result.insertId ? [] : [];
     let successTransactions = [];
     let failedTransactions = [];
 
-    // 检查哪些记录未成功插入
-    if (data.length > 0) {
-      const transactionNos = data.map(item => item.transaction_no);
-      const [existing] = await db.query(
-        'SELECT transaction_no FROM supply_chain_detail WHERE transaction_no IN (?)',
-        [transactionNos]
-      );
-      const existingSet = new Set(existing.map(row => row.transaction_no));
-      
-      data.forEach(item => {
-        if (existingSet.has(item.transaction_no)) {
-          successTransactions.push(item.transaction_no);
-        } else {
-          failedTransactions.push({
-            ...item,
-            reason: '插入失败'
-          });
-        }
-      });
+    const [existing] = await db.query(
+      "SELECT transaction_no FROM supply_chain_detail WHERE transaction_no IN (?)",
+      [transactionNos],
+    );
+
+    const existingSet = new Set();
+
+    for (let i = 0; i < existing.length; i++) {
+      existingSet.add(existing[i].transaction_no);
+    }
+
+    for (let i = 0; i < data.length; i++) {
+      const item = data[i];
+
+      if (existingSet.has(item.transaction_no)) {
+        successTransactions.push(item.transaction_no);
+      } else {
+        failedTransactions.push({
+          ...item,
+          reason: "插入失败",
+        });
+      }
     }
 
     res.json({
@@ -102,11 +115,12 @@ module.exports = async (req, res) => {
         insertedCount: result.affectedRows - result.changedRows,
         updatedCount: result.changedRows,
         successTransactions,
-        failedTransactions
+        failedTransactions,
       },
     });
   } catch (error) {
     console.error("批量导入供应链明细失败:", error);
+
     res.status(500).json({
       code: 500,
       message: "批量导入失败",
