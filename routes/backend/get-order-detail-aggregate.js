@@ -87,32 +87,58 @@ module.exports = async (req, res) => {
     );
     const total = countResult[0].total;
 
+    // 查询 summary 数据
+    const [summaryResult] = await db.query(
+      `SELECT 
+        SUM(quantity) as quantity,
+        SUM(paid_amount) as paid_amount,
+        SUM(shipping_cost) as shipping_cost,
+        SUM(shipping_subsidy) as shipping_subsidy,
+        SUM(platform_penalty) as platform_penalty,
+        SUM(return_loss) as return_loss,
+        SUM(order_amount) as order_amount,
+        SUM(total_amount) as total_amount
+      FROM order_detail_aggregate ${whereClause}`,
+      params,
+    );
+
+    const summary = {
+      quantity: summaryResult[0].quantity || 0,
+      paid_amount: summaryResult[0].paid_amount || 0,
+      shipping_cost: summaryResult[0].shipping_cost || 0,
+      shipping_subsidy: summaryResult[0].shipping_subsidy || 0,
+      platform_penalty: summaryResult[0].platform_penalty || 0,
+      return_loss: summaryResult[0].return_loss || 0,
+      order_amount: summaryResult[0].order_amount || 0,
+      total_amount: summaryResult[0].total_amount || 0,
+    };
+
     // 查询数据，按 purchase_date_china 倒序
     const [data] = await db.query(
       `SELECT * FROM order_detail_aggregate ${whereClause} ORDER BY purchase_date_china DESC LIMIT ? OFFSET ?`,
-      [...params, pageSize, offset]
+      [...params, pageSize, offset],
     );
 
     // 查询所有可选项
     const [orderStatuses] = await db.query(
-      "SELECT DISTINCT order_status FROM order_detail_aggregate WHERE order_status IS NOT NULL ORDER BY order_status"
+      "SELECT DISTINCT order_status FROM order_detail_aggregate WHERE order_status IS NOT NULL ORDER BY order_status",
     );
     const [settlementStatuses] = await db.query(
-      "SELECT DISTINCT order_settlement_status FROM order_detail_aggregate WHERE order_settlement_status IS NOT NULL ORDER BY order_settlement_status"
+      "SELECT DISTINCT order_settlement_status FROM order_detail_aggregate WHERE order_settlement_status IS NOT NULL ORDER BY order_settlement_status",
     );
     const [departments] = await db.query(
-      "SELECT DISTINCT department FROM order_detail_aggregate WHERE department IS NOT NULL ORDER BY department"
+      "SELECT DISTINCT department FROM order_detail_aggregate WHERE department IS NOT NULL ORDER BY department",
     );
     const [staffNames] = await db.query(
-      "SELECT DISTINCT staff_name FROM order_detail_aggregate WHERE staff_name IS NOT NULL ORDER BY staff_name"
+      "SELECT DISTINCT staff_name FROM order_detail_aggregate WHERE staff_name IS NOT NULL ORDER BY staff_name",
     );
     const [storeNames] = await db.query(
-      "SELECT DISTINCT store_name FROM order_detail_aggregate WHERE store_name IS NOT NULL ORDER BY store_name"
+      "SELECT DISTINCT store_name FROM order_detail_aggregate WHERE store_name IS NOT NULL ORDER BY store_name",
     );
 
     // 获取品类
     const [categories] = await db.query(
-      "SELECT DISTINCT category FROM order_detail_aggregate WHERE category IS NOT NULL ORDER BY category"
+      "SELECT DISTINCT category FROM order_detail_aggregate WHERE category IS NOT NULL ORDER BY category",
     );
     const categoryList = categories.map((item) => item.category);
 
@@ -121,7 +147,7 @@ module.exports = async (req, res) => {
     for (const cat of categoryList) {
       const [variations] = await db.query(
         "SELECT DISTINCT variation FROM order_detail_aggregate WHERE category = ? AND variation IS NOT NULL ORDER BY variation",
-        [cat]
+        [cat],
       );
       categorySpecifications[cat] = variations.map((item) => item.variation);
     }
@@ -131,6 +157,7 @@ module.exports = async (req, res) => {
       message: "获取订单明细聚合数据成功",
       data: {
         list: data,
+        summary,
         pagination: {
           page: pageNum,
           page_size: pageSize,
@@ -139,7 +166,9 @@ module.exports = async (req, res) => {
         },
         options: {
           orderStatuses: orderStatuses.map((item) => item.order_status),
-          settlementStatuses: settlementStatuses.map((item) => item.order_settlement_status),
+          settlementStatuses: settlementStatuses.map(
+            (item) => item.order_settlement_status,
+          ),
           departments: departments.map((item) => item.department),
           staffNames: staffNames.map((item) => item.staff_name),
           storeNames: storeNames.map((item) => item.store_name),
