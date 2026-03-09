@@ -9,8 +9,8 @@ console.log(`加载环境配置文件: ${envFile}`);
 const db = require("../../config/database");
 
 // 美元汇率
-// const USD_TO_CNY_RATE = 6.9826;
-const USD_TO_CNY_RATE = 1;
+const USD_TO_CNY_RATE = 6.9826;
+// const USD_TO_CNY_RATE = 1;
 
 // 聚合订单明细数据
 async function aggregateOrderDetail() {
@@ -23,6 +23,7 @@ async function aggregateOrderDetail() {
         order_id,
         order_item_id,
         order_status,
+        order_item_status,
         order_settlement_status,
         quantity,
         price,
@@ -291,6 +292,7 @@ async function aggregateOrderDetail() {
         order.order_id,
         order.order_item_id,
         order.order_status,
+        order.order_item_status,
         order.order_settlement_status,
         order.quantity,
         order.price * USD_TO_CNY_RATE, // price 转为人民币
@@ -320,7 +322,7 @@ async function aggregateOrderDetail() {
       const placeholders = batch
         .map(
           () =>
-            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .join(", ");
       const values = batch.flat();
@@ -328,7 +330,7 @@ async function aggregateOrderDetail() {
       await db.query(
         `
         INSERT INTO order_detail_aggregate (
-          order_id, order_item_id, order_status, order_settlement_status,
+          order_id, order_item_id, order_status, order_item_status, order_settlement_status,
           quantity, price, purchase_date_china, department, staff_name,
           staff_status, shipping_cost, shipping_subsidy, platform_penalty,
           return_loss, sales_platform, store_name, order_amount, paid_amount,
@@ -336,6 +338,7 @@ async function aggregateOrderDetail() {
         ) VALUES ${placeholders}
         ON DUPLICATE KEY UPDATE
           order_status = VALUES(order_status),
+          order_item_status = VALUES(order_item_status),
           order_settlement_status = VALUES(order_settlement_status),
           quantity = VALUES(quantity),
           price = VALUES(price),
