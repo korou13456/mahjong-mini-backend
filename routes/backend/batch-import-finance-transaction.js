@@ -34,50 +34,15 @@ module.exports = async (req, res) => {
       }
     });
 
-    // ========== 步骤2：查询数据库已存在的UUID ==========
-    const frontUniqueUuids = uniqueDataFromFront.map((item) => item.uuid);
-    let existedUuids = [];
-    if (frontUniqueUuids.length > 0) {
-      // 批量查询数据库中已存在的UUID
-      const [existedRows] = await db.query(
-        `SELECT uuid FROM finance_transaction_detail WHERE uuid IN (?)`,
-        [frontUniqueUuids],
-      );
-      existedUuids = existedRows.map((row) => row.uuid);
-    }
-
-    // ========== 步骤3：过滤掉数据库已存在的UUID ==========
-    const finalValidData = []; // 最终要入库的有效数据（内存+数据库都不重复）
-    const failedByDbExisted = []; // 数据库已存在的失败记录
-
-    uniqueDataFromFront.forEach(({ uuid, item }) => {
-      if (existedUuids.includes(uuid)) {
-        // 数据库已存在该UUID，标记为失败
-        failedByDbExisted.push({
-          uuid,
-          finance_time: item.finance_time,
-          transaction_type: item.transaction_type,
-          order_id: item.order_id,
-          order_item_id: item.order_item_id,
-          sku_id: item.sku_id,
-        });
-      } else {
-        // 全新UUID，加入入库列表
-        finalValidData.push({ uuid, item });
-      }
-    });
-
-    // ========== 步骤4：批量插入最终有效数据 ==========
+    // ========== 步骤2：批量插入或更新数据（使用 ON DUPLICATE KEY UPDATE） ==========
     let insertedCount = 0;
+    let updatedCount = 0;
     const successTransactions = [];
-    // 合并所有失败记录（前端重复 + 数据库已存在）
-    const failedTransactions = [
-      ...failedByMemoryDuplicate,
-      ...failedByDbExisted,
-    ];
+    // 只有前端重复的失败记录
+    const failedTransactions = [...failedByMemoryDuplicate];
 
-    if (finalValidData.length > 0) {
-      const values = finalValidData.map(({ uuid, item }) => [
+    if (uniqueDataFromFront.length > 0) {
+      const values = uniqueDataFromFront.map(({ uuid, item }) => [
         uuid,
         item.finance_time || null,
         item.transaction_type,
@@ -103,14 +68,32 @@ module.exports = async (req, res) => {
           shipping,
           total
         ) VALUES ?
+        ON DUPLICATE KEY UPDATE
+          finance_time = VALUES(finance_time),
+          transaction_type = VALUES(transaction_type),
+          order_id = VALUES(order_id),
+          order_item_id = VALUES(order_item_id),
+          sku_id = VALUES(sku_id),
+          ship_state = VALUES(ship_state),
+          subtotal = VALUES(subtotal),
+          shipping = VALUES(shipping),
+          total = VALUES(total)
       `;
 
       const [result] = await db.query(sql, [values]);
-      insertedCount = result.affectedRows; // 实际新增数量
+      insertedCount = result.affectedRows;
+
+      // 计算新增和更新数量
+      // affectedRows = 新增数量 + 2 * 更新数量（MySQL特性）
+      // 如果 affectedRows > uniqueDataFromFront.length，说明有更新
+      if (insertedCount > uniqueDataFromFront.length) {
+        updatedCount = (insertedCount - uniqueDataFromFront.length) / 2;
+        insertedCount = uniqueDataFromFront.length - updatedCount;
+      }
 
       // 组装成功入库的记录
       successTransactions.push(
-        ...finalValidData.map(({ uuid, item }) => ({
+        ...uniqueDataFromFront.map(({ uuid, item }) => ({
           uuid,
           finance_time: item.finance_time,
           transaction_type: item.transaction_type,
@@ -121,19 +104,18 @@ module.exports = async (req, res) => {
       );
     }
 
-    // ========== 步骤5：返回精准的响应数据 ==========
-    const actualInsertedTotal = insertedCount; // 实际入库数 = 新增数
+    // ========== 步骤3：返回精准的响应数据 ==========
     const totalUpload = data.length; // 前端上传总数
 
     res.json({
       code: 200,
-      message: `批量导入完成，上传${totalUpload}条，实际入库${actualInsertedTotal}条，失败${failedTransactions.length}条`,
+      message: `批量导入完成，上传${totalUpload}条，新增${insertedCount}条，更新${updatedCount}条，失败${failedTransactions.length}条`,
       data: {
         total: totalUpload, // 前端上传总数
-        actualInsertedTotal, // 实际入库总数（仅全新数据）
-        insertedCount, // 新增数量（=实际入库数）
-        successTransactions, // 成功入库的记录
-        failedTransactions, // 所有失败记录（前端重复+数据库已存在）
+        insertedCount, // 新增数量
+        updatedCount, // 更新数量
+        successTransactions, // 成功入库的记录（包括新增和更新）
+        failedTransactions, // 前端重复的失败记录
       },
     });
   } catch (error) {
