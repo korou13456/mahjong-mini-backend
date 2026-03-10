@@ -3,6 +3,7 @@ const db = require("../../config/database");
 module.exports = async (req, res) => {
   try {
     const { data } = req.body;
+    const { username: staff_name, department } = req.user || {};
 
     if (!data || !Array.isArray(data) || data.length === 0) {
       return res.status(400).json({
@@ -27,6 +28,8 @@ module.exports = async (req, res) => {
           order_id: item.order_id,
           order_item_id: item.order_item_id,
           sku_id: item.sku_id,
+          department: department || null,
+          staff_name: staff_name || null,
         });
       } else {
         memoryUuidMap.set(uuid, item);
@@ -53,6 +56,8 @@ module.exports = async (req, res) => {
         item.subtotal,
         item.shipping,
         item.total,
+        department || null,
+        staff_name || null,
       ]);
 
       const sql = `
@@ -66,7 +71,9 @@ module.exports = async (req, res) => {
           ship_state,
           subtotal,
           shipping,
-          total
+          total,
+          department,
+          staff_name
         ) VALUES ?
         ON DUPLICATE KEY UPDATE
           finance_time = VALUES(finance_time),
@@ -77,7 +84,9 @@ module.exports = async (req, res) => {
           ship_state = VALUES(ship_state),
           subtotal = VALUES(subtotal),
           shipping = VALUES(shipping),
-          total = VALUES(total)
+          total = VALUES(total),
+          department = VALUES(department),
+          staff_name = VALUES(staff_name)
       `;
 
       const [result] = await db.query(sql, [values]);
@@ -100,6 +109,8 @@ module.exports = async (req, res) => {
           order_id: item.order_id,
           order_item_id: item.order_item_id,
           sku_id: item.sku_id,
+          department: department || null,
+          staff_name: staff_name || null,
         })),
       );
     }
