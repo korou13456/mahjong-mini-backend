@@ -1,76 +1,41 @@
+// 汇率常量
+const EXCHANGE_RATE = 6.9826;
+
+// 格式化价格为人民币/美元格式
+function formatPrice(priceInCNY) {
+  const usd = priceInCNY / EXCHANGE_RATE;
+  return `¥${priceInCNY.toFixed(2)}/$${usd.toFixed(2)}`;
+}
+
 // 获取品类规格汇总数据
 const { backendAuth } = require("../../middleware/backend-auth");
 const db = require("../../config/database");
+const { priceList } = require("../../utils/price-list");
 
-// 获取出厂价的辅助函数
-function getFactoryPrice(category, specification) {
-  const FACTORY_PRICES = {
-    T恤: 18,
-    卫衣: 35,
-    毛毯: {
-      "30*40": 20,
-      "40*50": 30,
-      "50*60": 40,
-      "60*80": 50,
-    },
-    挂毯: {
-      "30*40": 20,
-      "40*60": 35,
-      "50*60": 40,
-      "60*80": 50,
-      "60*90": 50,
-    },
-    窗帘: {
-      "52*63": 50,
-      "52*84": 50,
-    },
-    帽子: {
-      牛仔帽: 18,
-      三明治帽: 18,
-    },
-    地垫: {
-      "40*60": 25,
-      "43*75": 30,
-      "43*120": 35,
-    },
-    鼠标垫: {
-      "30*80": 20,
-      "80*30": 20,
-    },
-    热转印贴: {
-      "4*4": 7,
-      "6*6": 7,
-      "8*8": 7,
-      "12*12": 7,
-      "18*18": 7,
-      "23*23": 7,
-    },
-  };
-
-  const categoryPrice = FACTORY_PRICES[category];
-  if (typeof categoryPrice === "number") return categoryPrice;
-  if (typeof categoryPrice === "object" && categoryPrice[specification]) {
-    return categoryPrice[specification];
-  }
-  return 0;
+// 从 priceList 获取工厂原价
+function getFactoryPriceFromList(category, variation) {
+  if (!priceList[category]) return null;
+  return priceList[category][variation] || null;
 }
 
-// 美元汇率
-const USD_RATE = 6.9826;
-
-// 计算底价的辅助函数
-function calculateBasePrice(item, category) {
-  const factoryPrice = getFactoryPrice(category, item.specification);
+// 计算底价的辅助函数（人民币）
+function calculateBasePrice(item, usePriceList) {
+  const factoryPrice = usePriceList
+    ? getFactoryPriceFromList(item.category, item.specification) ||
+      parseFloat(item.avg_order_amount) ||
+      0
+    : parseFloat(item.avg_order_amount) || 0;
   const avgShippingCost = parseFloat(item.avg_shipping_cost) || 0;
   const avgPlatformSubsidy = parseFloat(item.total_platform_subsidy) || 0;
   const avgPlatformPenalty = parseFloat(item.total_platform_penalty) || 0;
   const avgReturnLoss = parseFloat(item.total_return_loss) || 0;
   const avgResendLoss = parseFloat(item.total_resend_loss) || 0;
 
+  // 数据源已经是人民币，所以不需要汇率转换
   return (
-    factoryPrice / USD_RATE +
-    avgShippingCost * -1 +
-    avgReturnLoss * -1 -
+    factoryPrice -
+    avgShippingCost -
+    avgReturnLoss -
     avgResendLoss -
     avgPlatformSubsidy -
     avgPlatformPenalty
@@ -81,8 +46,10 @@ function calculateBasePrice(item, category) {
 function buildQuery(category, startDateStr, endDateStr, extraFilters) {
   const whereConditions = [
     "category = ?",
-    "report_date >= ?",
-    "report_date <= ?",
+    "DATE(purchase_date_china) >= ?",
+    "DATE(purchase_date_china) <= ?",
+    "order_status != 'Canceled'",
+    "paid_amount != 0",
   ];
   const queryParams = [category, startDateStr, endDateStr];
 
@@ -96,26 +63,27 @@ function buildQuery(category, startDateStr, endDateStr, extraFilters) {
   return {
     sql: `SELECT
       category,
-      specification,
-      SUM(shipping_cost)/SUM(NULLIF(sales_volume, 0)) as avg_shipping_cost,
-      SUM(platform_subsidy)/SUM(NULLIF(sales_volume, 0)) as total_platform_subsidy,
-      SUM(platform_penalty)/SUM(NULLIF(sales_volume, 0)) as total_platform_penalty,
-      SUM(return_loss)/SUM(NULLIF(sales_volume, 0)) as total_return_loss,
-      SUM(resend_loss)/SUM(NULLIF(sales_volume, 0)) as total_resend_loss
-    FROM sales_report_daily
+      variation as specification,
+      SUM(order_amount)/SUM(NULLIF(quantity, 0)) as avg_order_amount,
+      SUM(shipping_cost)/SUM(NULLIF(quantity, 0)) as avg_shipping_cost,
+      SUM(shipping_subsidy)/SUM(NULLIF(quantity, 0)) as total_platform_subsidy,
+      SUM(platform_penalty)/SUM(NULLIF(quantity, 0)) as total_platform_penalty,
+      SUM(return_loss)/SUM(NULLIF(quantity, 0)) as total_return_loss,
+      0 as total_resend_loss
+    FROM order_detail_aggregate
     WHERE ${whereConditions.join(" AND ")}
-    GROUP BY category, specification
-    ORDER BY specification`,
+    GROUP BY category, variation
+    ORDER BY variation`,
     params: queryParams,
   };
 }
 
-// 处理查询结果并计算底价
-function processQueryResults(data, category) {
+// 处理查询结果并计算底价（人民币）
+function processQueryResults(data) {
   const prices = {};
   data.forEach((item) => {
-    const price = calculateBasePrice(item, category);
-    prices[item.specification] = `$${price.toFixed(4)}`;
+    const price = calculateBasePrice(item);
+    prices[item.specification] = `¥${price.toFixed(2)}`;
   });
   return prices;
 }
@@ -123,12 +91,23 @@ function processQueryResults(data, category) {
 async function getCategorySpecSummary(req, res) {
   try {
     const { category, start_date, end_date } = req.query;
-    const { username: staff_name, department } = req.user || {};
 
+    // 查询所有品类（无论是否有category参数）
+    const [categories] = await db.query(
+      `SELECT DISTINCT category FROM order_detail_aggregate WHERE category IS NOT NULL ORDER BY category`,
+    );
+
+    // 如果品类参数为空，只返回品类列表
     if (!category) {
-      return res.status(400).json({
-        code: 400,
-        message: "品类参数不能为空",
+      return res.json({
+        code: 200,
+        message: "查询成功",
+        data: {
+          category: null,
+          date_range: null,
+          categories: categories.map((c) => c.category),
+          list: [],
+        },
       });
     }
 
@@ -142,56 +121,50 @@ async function getCategorySpecSummary(req, res) {
     const startDateStr = startDate.toISOString().split("T")[0];
     const endDateStr = endDate.toISOString().split("T")[0];
 
-    // 并行查询公司底价、部门底价和个人数据
-    const [companyQueryResult, deptQueryResult, personalQueryResult] =
-      await Promise.all([
-        db.query(
-          buildQuery(category, startDateStr, endDateStr, {}).sql,
-          buildQuery(category, startDateStr, endDateStr, {}).params,
-        ),
-        db.query(
-          buildQuery(category, startDateStr, endDateStr, { department }).sql,
-          buildQuery(category, startDateStr, endDateStr, { department }).params,
-        ),
-        db.query(
-          buildQuery(category, startDateStr, endDateStr, {
-            staff_name,
-            department,
-          }).sql,
-          buildQuery(category, startDateStr, endDateStr, {
-            staff_name,
-            department,
-          }).params,
-        ),
-      ]);
+    // 判断是否需要使用 priceList（只要查询的开始日期在 2026-03-04 之前（包含），就使用 priceList）
+    const usePriceListForOldData =
+      new Date(startDateStr) <= new Date("2026-03-04");
 
-    const companyBasePrices = processQueryResults(
-      companyQueryResult[0],
-      category,
-    );
-    const deptBasePrices = processQueryResults(deptQueryResult[0], category);
+    // 查询公司底价数据
+    const { sql, params } = buildQuery(category, startDateStr, endDateStr, {});
+    const [companyQueryResult] = await db.query(sql, params);
 
-    const [categories] = await db.query(
-      `SELECT DISTINCT category FROM sales_report_daily WHERE category IS NOT NULL ORDER BY category`,
-    );
+    if (companyQueryResult.length === 0) {
+      return res.json({
+        code: 200,
+        message: "查询成功",
+        data: {
+          category,
+          date_range: {
+            start: startDateStr,
+            end: endDateStr,
+          },
+          categories: categories.map((c) => c.category),
+          list: [],
+        },
+      });
+    }
 
-    // 如果个人数据为空，使用公司数据
-    const dataSource =
-      personalQueryResult[0].length > 0
-        ? personalQueryResult[0]
-        : companyQueryResult[0];
+    const formattedData = companyQueryResult.map((item) => {
+      // 如果查询的结束日期在 2026-03-04 之前（包含），使用 priceList 获取工厂原价
+      const usePriceList = usePriceListForOldData;
+      const factoryPrice = usePriceList
+        ? getFactoryPriceFromList(item.category, item.specification) ||
+          parseFloat(item.avg_order_amount) ||
+          0
+        : parseFloat(item.avg_order_amount) || 0;
 
-    const formattedData = dataSource.map((item) => {
-      const factoryPrice = getFactoryPrice(category, item.specification);
       const avgShippingCost = parseFloat(item.avg_shipping_cost) || 0;
       const avgPlatformSubsidy = parseFloat(item.total_platform_subsidy) || 0;
       const avgPlatformPenalty = parseFloat(item.total_platform_penalty) || 0;
       const avgReturnLoss = parseFloat(item.total_return_loss) || 0;
       const avgResendLoss = parseFloat(item.total_resend_loss) || 0;
-      const personalBasePrice =
-        factoryPrice / USD_RATE +
-        avgShippingCost * -1 +
-        avgReturnLoss * -1 -
+
+      // 计算公司底价（人民币）
+      const basePrice =
+        factoryPrice -
+        avgShippingCost -
+        avgReturnLoss -
         avgResendLoss -
         avgPlatformSubsidy -
         avgPlatformPenalty;
@@ -199,23 +172,13 @@ async function getCategorySpecSummary(req, res) {
       return {
         category: item.category,
         specification: item.specification,
-        factory_price: `¥${factoryPrice.toFixed(2)}/$${(
-          factoryPrice / USD_RATE
-        ).toFixed(4)}`,
-        shipping_cost: `$${avgShippingCost.toFixed(4)}`,
-        platform_subsidy: `$${avgPlatformSubsidy.toFixed(4)}`,
-        platform_penalty: `$${avgPlatformPenalty.toFixed(4)}`,
-        return_loss: `$${avgReturnLoss.toFixed(4)}`,
-        resend_loss: `$${avgResendLoss.toFixed(4)}`,
-        personal_base_price:
-          personalQueryResult[0].length > 0
-            ? `$${personalBasePrice.toFixed(4)}`
-            : null,
-        dept_base_price:
-          deptQueryResult[0].length > 0
-            ? deptBasePrices[item.specification] || null
-            : null,
-        company_base_price: companyBasePrices[item.specification] || null,
+        factory_price: formatPrice(factoryPrice),
+        shipping_cost: formatPrice(avgShippingCost),
+        platform_subsidy: formatPrice(avgPlatformSubsidy),
+        platform_penalty: formatPrice(avgPlatformPenalty),
+        return_loss: formatPrice(avgReturnLoss),
+        resend_loss: formatPrice(avgResendLoss),
+        company_base_price: formatPrice(basePrice),
       };
     });
 
