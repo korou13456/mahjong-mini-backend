@@ -12,56 +12,58 @@ module.exports = async (req, res) => {
       });
     }
 
-    // ========== 步骤1：内存层去重（前端上传的重复UUID） ==========
-    const memoryUuidMap = new Map();
-    const uniqueDataFromFront = []; // 前端去重后的数据
-    const failedByMemoryDuplicate = []; // 前端重复的失败记录
+    // ========= 步骤1：前端数据内存去重 =========
+    const uuidSet = new Set();
+    const uniqueData = [];
+    const failedTransactions = [];
 
     data.forEach((item) => {
       const uuid = item.uuid;
-      if (memoryUuidMap.has(uuid)) {
-        // 前端上传的重复UUID，标记为失败
-        failedByMemoryDuplicate.push({
-          uuid,
-          finance_time: item.finance_time,
-          transaction_type: item.transaction_type,
+
+      if (!uuid) {
+        failedTransactions.push({
+          uuid: null,
           order_id: item.order_id,
           order_item_id: item.order_item_id,
-          sku_id: item.sku_id,
-          department: department || null,
-          staff_name: staff_name || null,
+          reason: "uuid为空",
+        });
+        return;
+      }
+
+      if (uuidSet.has(uuid)) {
+        failedTransactions.push({
+          uuid,
+          order_id: item.order_id,
+          order_item_id: item.order_item_id,
+          reason: "前端数据UUID重复",
         });
       } else {
-        memoryUuidMap.set(uuid, item);
-        uniqueDataFromFront.push({ uuid, item });
+        uuidSet.add(uuid);
+        uniqueData.push(item);
       }
     });
 
-    // ========== 步骤2：批量插入或更新数据（使用 ON DUPLICATE KEY UPDATE） ==========
+    // ========= 步骤2：准备批量插入 =========
+    const values = uniqueData.map((item) => [
+      item.uuid,
+      item.finance_time || null,
+      item.transaction_type || null,
+      item.order_id || null,
+      item.order_item_id || null,
+      item.sku_id || null,
+      item.ship_state || null,
+      item.subtotal || 0,
+      item.shipping || 0,
+      item.total || 0,
+      department || null,
+      staff_name || null,
+    ]);
+
     let insertedCount = 0;
-    let updatedCount = 0;
-    const successTransactions = [];
-    // 只有前端重复的失败记录
-    const failedTransactions = [...failedByMemoryDuplicate];
 
-    if (uniqueDataFromFront.length > 0) {
-      const values = uniqueDataFromFront.map(({ uuid, item }) => [
-        uuid,
-        item.finance_time || null,
-        item.transaction_type,
-        item.order_id,
-        item.order_item_id || null,
-        item.sku_id,
-        item.ship_state,
-        item.subtotal,
-        item.shipping,
-        item.total,
-        department || null,
-        staff_name || null,
-      ]);
-
+    if (values.length > 0) {
       const sql = `
-        INSERT INTO finance_transaction_detail (
+        INSERT IGNORE INTO finance_transaction_detail (
           uuid,
           finance_time,
           transaction_type,
@@ -75,62 +77,57 @@ module.exports = async (req, res) => {
           department,
           staff_name
         ) VALUES ?
-        ON DUPLICATE KEY UPDATE
-          finance_time = VALUES(finance_time),
-          transaction_type = VALUES(transaction_type),
-          order_id = VALUES(order_id),
-          order_item_id = VALUES(order_item_id),
-          sku_id = VALUES(sku_id),
-          ship_state = VALUES(ship_state),
-          subtotal = VALUES(subtotal),
-          shipping = VALUES(shipping),
-          total = VALUES(total),
-          department = VALUES(department),
-          staff_name = VALUES(staff_name)
       `;
 
       const [result] = await db.query(sql, [values]);
+
       insertedCount = result.affectedRows;
-
-      // 计算新增和更新数量
-      // affectedRows = 新增数量 + 2 * 更新数量（MySQL特性）
-      // 如果 affectedRows > uniqueDataFromFront.length，说明有更新
-      if (insertedCount > uniqueDataFromFront.length) {
-        updatedCount = (insertedCount - uniqueDataFromFront.length) / 2;
-        insertedCount = uniqueDataFromFront.length - updatedCount;
-      }
-
-      // 组装成功入库的记录
-      successTransactions.push(
-        ...uniqueDataFromFront.map(({ uuid, item }) => ({
-          uuid,
-          finance_time: item.finance_time,
-          transaction_type: item.transaction_type,
-          order_id: item.order_id,
-          order_item_id: item.order_item_id,
-          sku_id: item.sku_id,
-          department: department || null,
-          staff_name: staff_name || null,
-        })),
-      );
     }
 
-    // ========== 步骤3：返回精准的响应数据 ==========
-    const totalUpload = data.length; // 前端上传总数
+    // ========= 步骤3：计算数据库重复 =========
+    const dbDuplicateCount = uniqueData.length - insertedCount;
 
+    if (dbDuplicateCount > 0) {
+      const duplicateItems = uniqueData.slice(insertedCount);
+
+      duplicateItems.forEach((item) => {
+        failedTransactions.push({
+          uuid: item.uuid,
+          order_id: item.order_id,
+          order_item_id: item.order_item_id,
+          reason: "数据库UUID重复",
+        });
+      });
+    }
+
+    // ========= 步骤4：成功数据 =========
+    const successTransactions = uniqueData
+      .slice(0, insertedCount)
+      .map((item) => ({
+        uuid: item.uuid,
+        order_id: item.order_id,
+        order_item_id: item.order_item_id,
+        department: department || null,
+        staff_name: staff_name || null,
+      }));
+
+    const totalUpload = data.length;
+
+    // ========= 步骤5：返回结果 =========
     res.json({
       code: 200,
-      message: `批量导入完成，上传${totalUpload}条，新增${insertedCount}条，更新${updatedCount}条，失败${failedTransactions.length}条`,
+      message: `上传${totalUpload}条，成功${insertedCount}条，失败${failedTransactions.length}条`,
       data: {
-        total: totalUpload, // 前端上传总数
-        insertedCount, // 新增数量
-        updatedCount, // 更新数量
-        successTransactions, // 成功入库的记录（包括新增和更新）
-        failedTransactions, // 前端重复的失败记录
+        total: totalUpload,
+        insertedCount,
+        failedCount: failedTransactions.length,
+        successTransactions,
+        failedTransactions,
       },
     });
   } catch (error) {
     console.error("批量导入财务交易明细失败:", error);
+
     res.status(500).json({
       code: 500,
       message: "批量导入失败",
