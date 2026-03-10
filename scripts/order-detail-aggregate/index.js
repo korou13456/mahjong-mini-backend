@@ -217,11 +217,11 @@ async function aggregateOrderDetail() {
       return parts.length > 1 ? parts.slice(1).join("-").trim() : storeName;
     }
 
-    // 计算每个 order_id 下所有订单项的总数量
-    const orderQuantityMap = new Map();
+    // 计算每个 order_id 下的订单项数量（不是商品数量）
+    const orderItemCountMap = new Map();
     orderDetails.forEach((item) => {
-      const currentQuantity = orderQuantityMap.get(item.order_id) || 0;
-      orderQuantityMap.set(item.order_id, currentQuantity + item.quantity);
+      const currentCount = orderItemCountMap.get(item.order_id) || 0;
+      orderItemCountMap.set(item.order_id, currentCount + 1);
     });
 
     // 构建订单明细和供应链数据的对应关系
@@ -259,14 +259,14 @@ async function aggregateOrderDetail() {
         // 取消的订单，total_amount = 0
         totalAmount = 0;
       } else {
-        // 获取该订单的总数量
-        const totalQuantity = orderQuantityMap.get(order.order_id) || 1;
+        // 获取该订单下的订单项数量
+        const totalItemCount = orderItemCountMap.get(order.order_id) || 1;
 
-        // 按数量比例平均分配快递成本、平台罚款、退货损耗
-        const shippingCostPerItem = financeData.shipping_cost / totalQuantity;
+        // 按订单项数量比例平均分配快递成本、平台罚款、退货损耗
+        const shippingCostPerItem = financeData.shipping_cost / totalItemCount;
         const platformPenaltyPerItem =
-          financeData.platform_penalty / totalQuantity;
-        const returnLossPerItem = financeData.return_loss / totalQuantity;
+          financeData.platform_penalty / totalItemCount;
+        const returnLossPerItem = financeData.return_loss / totalItemCount;
 
         // 正常订单：paid_amount + shipping_cost + shipping_subsidy + platform_penalty + return_loss - order_amount
         const orderAmount = supplyChainData?.goods_amount || 0;
@@ -279,14 +279,14 @@ async function aggregateOrderDetail() {
           orderAmount;
       }
 
-      // 获取该订单的总数量
-      const totalQuantity = orderQuantityMap.get(order.order_id) || 1;
+      // 获取该订单下的订单项数量
+      const totalItemCount = orderItemCountMap.get(order.order_id) || 1;
 
-      // 按数量比例平均分配快递成本、平台罚款、退货损耗
-      const shippingCostPerItem = financeData.shipping_cost / totalQuantity;
+      // 按订单项数量比例平均分配快递成本、平台罚款、退货损耗
+      const shippingCostPerItem = financeData.shipping_cost / totalItemCount;
       const platformPenaltyPerItem =
-        financeData.platform_penalty / totalQuantity;
-      const returnLossPerItem = financeData.return_loss / totalQuantity;
+        financeData.platform_penalty / totalItemCount;
+      const returnLossPerItem = financeData.return_loss / totalItemCount;
 
       return [
         order.order_id,
