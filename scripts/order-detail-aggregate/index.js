@@ -9,8 +9,8 @@ console.log(`加载环境配置文件: ${envFile}`);
 const db = require("../../config/database");
 
 // 美元汇率
-// const USD_TO_CNY_RATE = 6.9826;
-const USD_TO_CNY_RATE = 1;
+const USD_TO_CNY_RATE = 6.9826;
+// const USD_TO_CNY_RATE = 1;
 
 // 交易类型配置
 const { TRANSACTION_TYPES } = require("../../utils/transaction-types");
@@ -140,7 +140,10 @@ async function aggregateOrderDetail() {
       }
 
       // 平台补贴（订单项级别）：Order Payment 和 Refund，每个订单项用自己的 shipping
-      if (TRANSACTION_TYPES.PLATFORM_SHIPPING.includes(item.transaction_type) && itemFinanceData) {
+      if (
+        TRANSACTION_TYPES.PLATFORM_SHIPPING.includes(item.transaction_type) &&
+        itemFinanceData
+      ) {
         itemFinanceData.shipping_subsidy +=
           parseFloat(item.shipping || 0) * USD_TO_CNY_RATE;
       }
@@ -158,7 +161,10 @@ async function aggregateOrderDetail() {
       }
 
       // 用户支付金额（订单项级别）：Order Payment
-      if (item.transaction_type === TRANSACTION_TYPES.USER_PAYMENT[0] && itemFinanceData) {
+      if (
+        item.transaction_type === TRANSACTION_TYPES.USER_PAYMENT[0] &&
+        itemFinanceData
+      ) {
         itemFinanceData.paid_amount +=
           parseFloat(item.subtotal || 0) * USD_TO_CNY_RATE;
       }
@@ -255,7 +261,10 @@ async function aggregateOrderDetail() {
       }
 
       // 使用工厂价格替代 goods_amount（如果存在工厂价格）
-      const orderAmount = factoryPrice !== null ? factoryPrice : (supplyChainData?.goods_amount || 0);
+      const orderAmount =
+        factoryPrice !== null
+          ? factoryPrice
+          : supplyChainData?.goods_amount || 0;
 
       // 计算 total_amount
       let totalAmount;
