@@ -131,6 +131,13 @@ async function aggregateFinanceByOrder(year, month, staffName = null) {
       data.shipping_cost += parseFloat(row.total || 0);
     }
 
+    // 物流费用：Shipping label purchase 和 adjustment 的 total
+    if (
+      TRANSACTION_TYPES.SHIPPING_COST_ADJUSTMENT.includes(row.transaction_type)
+    ) {
+      data.shipping_cost += parseFloat(row.total || 0);
+    }
+
     // 退货 subtotal：Refund 的 subtotal
     if (TRANSACTION_TYPES.REFUND.includes(row.transaction_type)) {
       data.refund_subtotal += parseFloat(row.subtotal || 0);

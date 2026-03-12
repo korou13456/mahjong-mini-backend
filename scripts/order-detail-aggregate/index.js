@@ -139,6 +139,15 @@ async function aggregateOrderDetail() {
           parseFloat(item.total || 0) * USD_TO_CNY_RATE;
       }
 
+      if (
+        TRANSACTION_TYPES.SHIPPING_COST_ADJUSTMENT.includes(
+          item.transaction_type,
+        )
+      ) {
+        financeData.shipping_cost +=
+          parseFloat(item.total || 0) * USD_TO_CNY_RATE;
+      }
+
       // 平台补贴（订单项级别）：Order Payment 和 Refund，每个订单项用自己的 shipping
       if (
         TRANSACTION_TYPES.PLATFORM_SHIPPING.includes(item.transaction_type) &&

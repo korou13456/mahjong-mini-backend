@@ -9,6 +9,10 @@ const TRANSACTION_TYPES = {
   // 物流费用 .total
   SHIPPING_COST: [
     "Shipping label purchase", // 购买发货运单
+  ],
+
+  // 物流调整费用 .total
+  SHIPPING_COST_ADJUSTMENT: [
     "Shipping label purchase adjustment", // 发货运单费用调整
   ],
 
