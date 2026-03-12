@@ -255,8 +255,8 @@ async function aggregateOrderDetail() {
         const category = mapCategory(supplyChainData?.product_name);
         const size = supplyChainData?.size;
         if (category && priceList[category] && priceList[category][size]) {
-          // 工厂价格单价 × 数量
-          factoryPrice = priceList[category][size] * (order.quantity || 1);
+          // 工厂价格单价 × 供应链表的数量
+          factoryPrice = priceList[category][size] * (supplyChainData?.quantity || 1);
         }
       }
 
