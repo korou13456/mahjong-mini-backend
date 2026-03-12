@@ -383,6 +383,7 @@ async function generateMonthReportData(financeByOrder, adFeeRows) {
     if (deptEmpMap.has(key)) {
       const empData = deptEmpMap.get(key);
       // 广告费用从总收入中扣除
+      empData.total_income_cny += adFeeUSD * USD_RATE;
       empData.total_profit_cny += adFeeUSD * USD_RATE;
       console.log(
         `广告费用: ${department} | ${staffName} | 扣除:$${adFeeUSD.toFixed(2)}`,
