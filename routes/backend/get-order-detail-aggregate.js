@@ -16,6 +16,7 @@ module.exports = async (req, res) => {
       category,
       variation,
       store_name,
+      has_payment,
     } = req.query;
 
     // 兼容不同的时间参数名
@@ -74,6 +75,15 @@ module.exports = async (req, res) => {
     if (store_name) {
       conditions.push("store_name LIKE ?");
       params.push(`%${store_name}%`);
+    }
+
+    // 是否有回款筛选
+    if (has_payment !== undefined && has_payment !== "") {
+      if (has_payment === "true") {
+        conditions.push("paid_amount != 0");
+      } else if (has_payment === "false") {
+        conditions.push("paid_amount = 0");
+      }
     }
 
     // 构建 WHERE 子句
