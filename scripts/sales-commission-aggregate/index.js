@@ -12,6 +12,9 @@ const USD_RATE = 6.9826;
 // 从 priceList 获取工厂原价
 const { priceList } = require("../../utils/price-list");
 
+// 交易类型配置
+const { TRANSACTION_TYPES } = require("../../utils/transaction-types");
+
 function getFactoryPrice(category, specification) {
   if (!priceList[category]) return 0;
   return priceList[category][specification] || 0;
@@ -76,7 +79,7 @@ async function aggregateFinanceByOrder(year, month, staffName = null) {
       department,
       staff_name
     FROM finance_transaction_detail
-    WHERE finance_time >= ? AND finance_time <= ? AND order_id IS NULL AND transaction_type = "Advertising service fee"`;
+    WHERE finance_time >= ? AND finance_time <= ? AND order_id IS NULL AND transaction_type = "${TRANSACTION_TYPES.ADVERTISING_FEE}"`;
   const adFeeParams = [startDate, endDate];
 
   if (staffName) {
@@ -114,42 +117,27 @@ async function aggregateFinanceByOrder(year, month, staffName = null) {
     }
 
     // 用户支付：Order Payment 的 subtotal
-    if (row.transaction_type === "Order Payment") {
+    if (TRANSACTION_TYPES.USER_PAYMENT.includes(row.transaction_type)) {
       data.user_payment += parseFloat(row.subtotal || 0);
     }
 
     // 平台物流补贴：Order Payment 和 Refund 的 shipping（Refund 的 shipping 是负值，需要减去）
-    if (["Order Payment", "Refund"].includes(row.transaction_type)) {
+    if (TRANSACTION_TYPES.PLATFORM_SHIPPING.includes(row.transaction_type)) {
       data.platform_shipping += parseFloat(row.shipping || 0);
     }
 
     // 物流费用：Shipping label purchase 和 adjustment 的 total
-    if (
-      [
-        "Shipping label purchase",
-        "Shipping label purchase adjustment",
-        "Shipping label for return purchase adjustment",
-        "Shipping label for return purchase",
-        "Shipping label for return purchase covered by plat",
-      ].includes(row.transaction_type)
-    ) {
+    if (TRANSACTION_TYPES.SHIPPING_COST.includes(row.transaction_type)) {
       data.shipping_cost += parseFloat(row.total || 0);
     }
 
     // 退货 subtotal：Refund 的 subtotal
-    if (row.transaction_type === "Refund") {
+    if (row.transaction_type.includes(row.transaction_type)) {
       data.refund_subtotal += parseFloat(row.subtotal || 0);
     }
 
     // 平台罚款：Delayed fulfillment deduction 和 Out of stock deduction 的 total
-    if (
-      [
-        "Delayed fulfillment deduction",
-        "Out of stock deduction",
-        "Platform reimbursement",
-        "Chargeback processing fee",
-      ].includes(row.transaction_type)
-    ) {
+    if (TRANSACTION_TYPES.PLATFORM_PENALTY.includes(row.transaction_type)) {
       data.platform_penalty += parseFloat(row.total || 0);
     }
   });

@@ -9,8 +9,12 @@ console.log(`加载环境配置文件: ${envFile}`);
 const db = require("../../config/database");
 
 // 美元汇率
-const USD_TO_CNY_RATE = 6.9826;
-// const USD_TO_CNY_RATE = 1;
+// const USD_TO_CNY_RATE = 6.9826;
+const USD_TO_CNY_RATE = 1;
+
+// 交易类型配置
+const { TRANSACTION_TYPES } = require("../../utils/transaction-types");
+const { priceList } = require("../../utils/price-list");
 
 // 聚合订单明细数据
 async function aggregateOrderDetail() {
@@ -103,85 +107,60 @@ async function aggregateOrderDetail() {
       [orderIds],
     );
 
-    // 聚合财务数据 - 按 order_id 分组
-    const financeMap = new Map(); // order_id -> { shipping_cost, shipping_subsidy, return_loss, platform_penalty }
+    // 聚合财务数据
+    const financeMap = new Map(); // order_id -> { shipping_cost, return_loss, platform_penalty }
+    const financeItemMap = new Map(); // order_item_id -> { paid_amount, shipping_subsidy }
 
     financeDetails.forEach((item) => {
+      // 订单级别数据初始化
       if (!financeMap.has(item.order_id)) {
         financeMap.set(item.order_id, {
           shipping_cost: 0,
-          shipping_subsidy: 0,
           return_loss: 0,
           platform_penalty: 0,
         });
       }
-
       const financeData = financeMap.get(item.order_id);
 
-      // 快递成本
-      if (
-        [
-          "Shipping label purchase",
-          "Shipping label purchase adjustment",
-          "Shipping label for return purchase adjustment",
-        ].includes(item.transaction_type)
-      ) {
+      // 只有 Order Payment 和 Refund 才有 order_item_id
+      if (item.order_item_id && !financeItemMap.has(item.order_item_id)) {
+        financeItemMap.set(item.order_item_id, {
+          paid_amount: 0,
+          shipping_subsidy: 0,
+        });
+      }
+      const itemFinanceData = item.order_item_id
+        ? financeItemMap.get(item.order_item_id)
+        : null;
+
+      // 快递成本（订单级别）
+      if (TRANSACTION_TYPES.SHIPPING_COST.includes(item.transaction_type)) {
         financeData.shipping_cost +=
           parseFloat(item.total || 0) * USD_TO_CNY_RATE;
       }
 
-      // 平台补贴
-      if (["Order Payment", "Refund"].includes(item.transaction_type)) {
-        financeData.shipping_subsidy +=
+      // 平台补贴（订单项级别）：Order Payment 和 Refund，每个订单项用自己的 shipping
+      if (TRANSACTION_TYPES.PLATFORM_SHIPPING.includes(item.transaction_type) && itemFinanceData) {
+        itemFinanceData.shipping_subsidy +=
           parseFloat(item.shipping || 0) * USD_TO_CNY_RATE;
       }
 
-      // 退货损耗
-      if (
-        [
-          "Refund",
-          "Shipping label for return purchase",
-          "Platform reimbursement",
-          "Shipping label for return purchase covered by platform",
-          "Chargeback processing fee",
-        ].includes(item.transaction_type)
-      ) {
+      // 退货损耗（订单级别）
+      if (TRANSACTION_TYPES.REFUND.includes(item.transaction_type)) {
         financeData.return_loss +=
           parseFloat(item.subtotal || 0) * USD_TO_CNY_RATE;
       }
 
-      // 平台罚款
-      if (item.transaction_type === "Delayed fulfillment deduction") {
+      // 平台罚款（订单级别）
+      if (TRANSACTION_TYPES.PLATFORM_PENALTY.includes(item.transaction_type)) {
         financeData.platform_penalty +=
           parseFloat(item.total || 0) * USD_TO_CNY_RATE;
       }
-    });
 
-    // 聚合订单项级别的财务数据 - 按 order_item_id 分组
-    const financeItemMap = new Map(); // order_item_id -> { paid_amount, shipping_subsidy_item }
-
-    financeDetails.forEach((item) => {
-      if (!item.order_item_id) return;
-
-      if (!financeItemMap.has(item.order_item_id)) {
-        financeItemMap.set(item.order_item_id, {
-          paid_amount: 0,
-          shipping_subsidy_item: 0,
-        });
-      }
-
-      const itemFinanceData = financeItemMap.get(item.order_item_id);
-
-      // 用户支付金额：Order Payment 的 subtotal
-      if (item.transaction_type === "Order Payment") {
+      // 用户支付金额（订单项级别）：Order Payment
+      if (item.transaction_type === TRANSACTION_TYPES.USER_PAYMENT[0] && itemFinanceData) {
         itemFinanceData.paid_amount +=
           parseFloat(item.subtotal || 0) * USD_TO_CNY_RATE;
-      }
-
-      // 订单项级别的平台补贴：Order Payment 和 Refund 的 shipping
-      if (["Order Payment", "Refund"].includes(item.transaction_type)) {
-        itemFinanceData.shipping_subsidy_item +=
-          parseFloat(item.shipping || 0) * USD_TO_CNY_RATE;
       }
     });
 
@@ -242,7 +221,6 @@ async function aggregateOrderDetail() {
 
       const financeData = financeMap.get(order.order_id) || {
         shipping_cost: 0,
-        shipping_subsidy: 0,
         return_loss: 0,
         platform_penalty: 0,
       };
@@ -250,34 +228,8 @@ async function aggregateOrderDetail() {
       // 获取订单项级别的财务数据
       const itemFinanceData = financeItemMap.get(order.order_item_id) || {
         paid_amount: 0,
-        shipping_subsidy_item: 0,
+        shipping_subsidy: 0,
       };
-
-      // 计算 total_amount
-      let totalAmount;
-      if (order.order_status === "Canceled") {
-        // 取消的订单，total_amount = 0
-        totalAmount = 0;
-      } else {
-        // 获取该订单下的订单项数量
-        const totalItemCount = orderItemCountMap.get(order.order_id) || 1;
-
-        // 按订单项数量比例平均分配快递成本、平台罚款、退货损耗
-        const shippingCostPerItem = financeData.shipping_cost / totalItemCount;
-        const platformPenaltyPerItem =
-          financeData.platform_penalty / totalItemCount;
-        const returnLossPerItem = financeData.return_loss / totalItemCount;
-
-        // 正常订单：paid_amount + shipping_cost + shipping_subsidy + platform_penalty + return_loss - order_amount
-        const orderAmount = supplyChainData?.goods_amount || 0;
-        totalAmount =
-          itemFinanceData.paid_amount +
-          shippingCostPerItem +
-          financeData.shipping_subsidy +
-          platformPenaltyPerItem +
-          returnLossPerItem -
-          orderAmount;
-      }
 
       // 获取该订单下的订单项数量
       const totalItemCount = orderItemCountMap.get(order.order_id) || 1;
@@ -287,6 +239,39 @@ async function aggregateOrderDetail() {
       const platformPenaltyPerItem =
         financeData.platform_penalty / totalItemCount;
       const returnLossPerItem = financeData.return_loss / totalItemCount;
+
+      // 获取工厂价格（2026-03-04之前包括03-04使用工厂价格）
+      let factoryPrice = null;
+      const cutoffDate = new Date("2026-03-04T23:59:59");
+      const orderDate = new Date(order.purchase_date_china);
+
+      if (orderDate <= cutoffDate) {
+        const category = mapCategory(supplyChainData?.product_name);
+        const size = supplyChainData?.size;
+        if (category && priceList[category] && priceList[category][size]) {
+          // 工厂价格单价 × 数量
+          factoryPrice = priceList[category][size] * (order.quantity || 1);
+        }
+      }
+
+      // 使用工厂价格替代 goods_amount（如果存在工厂价格）
+      const orderAmount = factoryPrice !== null ? factoryPrice : (supplyChainData?.goods_amount || 0);
+
+      // 计算 total_amount
+      let totalAmount;
+      if (order.order_status === "Canceled") {
+        // 取消的订单，total_amount = 0
+        totalAmount = 0;
+      } else {
+        // 正常订单：paid_amount + shipping_cost + shipping_subsidy + platform_penalty + return_loss - order_amount
+        totalAmount =
+          itemFinanceData.paid_amount +
+          shippingCostPerItem +
+          itemFinanceData.shipping_subsidy +
+          platformPenaltyPerItem +
+          returnLossPerItem -
+          orderAmount;
+      }
 
       return [
         order.order_id,
@@ -301,12 +286,12 @@ async function aggregateOrderDetail() {
         order.staff_name,
         null, // staff_status
         shippingCostPerItem, // 按数量比例平均分配快递成本
-        itemFinanceData.shipping_subsidy_item, // 使用订单项级别的平台补贴
+        itemFinanceData.shipping_subsidy, // 平台补贴（订单项级别）
         platformPenaltyPerItem, // 按数量比例平均分配平台罚款
         returnLossPerItem, // 按数量比例平均分配退货损耗
         supplyChainData?.sales_platform || null,
         extractStoreName(supplyChainData?.store_name) || null, // store_name 处理 - 后面的部分
-        supplyChainData?.goods_amount || null, // order_amount 取供应链表的 goods_amount，已经是人民币
+        orderAmount, // 使用工厂价格或 goods_amount
         itemFinanceData.paid_amount, // 用户支付金额
         mapCategory(supplyChainData?.product_name) || null, // category
         supplyChainData?.size || null, // variation
