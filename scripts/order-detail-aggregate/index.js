@@ -148,10 +148,18 @@ async function aggregateOrderDetail() {
           parseFloat(item.shipping || 0) * USD_TO_CNY_RATE;
       }
 
-      // 退货损耗（订单级别）
+      // 退货损耗（订单级别）：包括退货金额（subtotal）和退货物流费用（total）
       if (TRANSACTION_TYPES.REFUND.includes(item.transaction_type)) {
         financeData.return_loss +=
           parseFloat(item.subtotal || 0) * USD_TO_CNY_RATE;
+      }
+
+      // 退货产生的物流费用（订单级别）
+      if (
+        TRANSACTION_TYPES.SHIPPING_COST_RETURN.includes(item.transaction_type)
+      ) {
+        financeData.return_loss +=
+          parseFloat(item.total || 0) * USD_TO_CNY_RATE;
       }
 
       // 平台罚款（订单级别）
@@ -256,7 +264,8 @@ async function aggregateOrderDetail() {
         const size = supplyChainData?.size;
         if (category && priceList[category] && priceList[category][size]) {
           // 工厂价格单价 × 供应链表的数量
-          factoryPrice = priceList[category][size] * (supplyChainData?.quantity || 1);
+          factoryPrice =
+            priceList[category][size] * (supplyChainData?.quantity || 1);
         }
       }
 

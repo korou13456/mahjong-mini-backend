@@ -8,11 +8,15 @@ const TRANSACTION_TYPES = {
 
   // 物流费用 .total
   SHIPPING_COST: [
-    "Shipping label purchase",
-    "Shipping label purchase adjustment",
-    "Shipping label for return purchase adjustment",
-    "Shipping label for return purchase",
-    "Shipping label for return purchase covered by plat",
+    "Shipping label purchase", // 购买发货运单
+    "Shipping label purchase adjustment", // 发货运单费用调整
+  ],
+
+  // 退货产生的物流费用 .total
+  SHIPPING_COST_RETURN: [
+    "Shipping label for return purchase", // 购买退货运单
+    "Shipping label for return purchase adjustment", // 退货运单费用调整
+    "Shipping label for return purchase covered by plat", // 平台承担的退货运单费用
   ],
 
   // 退货 .subtotal

@@ -132,8 +132,13 @@ async function aggregateFinanceByOrder(year, month, staffName = null) {
     }
 
     // 退货 subtotal：Refund 的 subtotal
-    if (row.transaction_type.includes(row.transaction_type)) {
+    if (TRANSACTION_TYPES.REFUND.includes(row.transaction_type)) {
       data.refund_subtotal += parseFloat(row.subtotal || 0);
+    }
+
+    // 退货产生的物流费用（订单级别）
+    if (TRANSACTION_TYPES.SHIPPING_COST_RETURN.includes(row.transaction_type)) {
+      data.refund_subtotal += parseFloat(row.total || 0);
     }
 
     // 平台罚款：Delayed fulfillment deduction 和 Out of stock deduction 的 total
