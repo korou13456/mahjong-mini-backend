@@ -58,7 +58,7 @@ router.get(
   require("./get-category-spec-summary"),
 );
 // 获取月度提成报表
-router.get("/month-report", backendAuth, require("./get-month-report"));
+router.get("/employee_profit", backendAuth, require("./get-employee_profit"));
 // 获取订单商品聚合数据
 router.get(
   "/order-product-aggregate",
@@ -74,7 +74,11 @@ router.get(
 // 获取管理员用户列表
 router.get("/admin-users", backendAuth, require("./get-admin-users"));
 // 获取订单明细聚合数据
-router.get("/order-detail-aggregate", backendAuth, require("./get-order-detail-aggregate"));
+router.get(
+  "/order-detail-aggregate",
+  backendAuth,
+  require("./get-order-detail-aggregate"),
+);
 
 // 路由权限管理
 router.use("/router_permission", backendAuth, require("./router_permission"));

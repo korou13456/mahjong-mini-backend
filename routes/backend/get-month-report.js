@@ -41,7 +41,7 @@ module.exports = async (req, res) => {
         team_commission,
         created_at,
         updated_at
-      FROM month_report
+      FROM employee_profit
       ${whereClause}
       ORDER BY month DESC, department, employee`,
       params,
@@ -49,12 +49,12 @@ module.exports = async (req, res) => {
 
     // 获取可用的部门列表
     const [departments] = await db.query(
-      `SELECT DISTINCT department FROM month_report ORDER BY department`,
+      `SELECT DISTINCT department FROM employee_profit ORDER BY department`,
     );
 
     // 获取可用的员工列表
     const [employees] = await db.query(
-      `SELECT DISTINCT employee FROM month_report ORDER BY employee`,
+      `SELECT DISTINCT employee FROM employee_profit ORDER BY employee`,
     );
 
     res.json({
