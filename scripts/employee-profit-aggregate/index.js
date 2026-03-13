@@ -195,9 +195,15 @@ function filterInvalidOrders(financeByOrder) {
 }
 
 // 步骤4: 处理 otherOrders 的数据，计算每个员工的平台收入总和
-function processOtherOrders(otherOrders) {
+async function processOtherOrders(
+  otherOrders,
+  monthStart,
+  monthEnd,
+  targetEmployee = null,
+) {
   const employeePenaltyMap = new Map();
 
+  // 处理 otherOrders 中的数据
   otherOrders.forEach((data) => {
     const key = `${data.department}_${data.staff_name}`;
     if (!employeePenaltyMap.has(key)) {
@@ -216,8 +222,44 @@ function processOtherOrders(otherOrders) {
       data.platform_penalty;
   });
 
+
+  // 查询对应时间内所有的广告费用
+  let query = `
+    SELECT
+      department,
+      staff_name,
+      total
+    FROM finance_transaction_detail
+    WHERE finance_time >= ? AND finance_time < ?
+      AND transaction_type = ?
+  `;
+  const params = [monthStart, monthEnd, TRANSACTION_TYPES.ADVERTISING_FEE];
+
+  if (targetEmployee) {
+    query += ` AND staff_name = ?`;
+    params.push(targetEmployee);
+  }
+
+  const [advertisingRows] = await db.query(query, params);
+  console.log(`查询到 ${advertisingRows.length} 条广告费用记录`);
+
+  // 根据 staff_name 聚合广告费用
+  advertisingRows.forEach((row) => {
+    const key = `${row.department}_${row.staff_name}`;
+    if (!employeePenaltyMap.has(key)) {
+      employeePenaltyMap.set(key, {
+        department: row.department,
+        staff_name: row.staff_name,
+        penalty: 0,
+      });
+    }
+
+    const employeeData = employeePenaltyMap.get(key);
+    employeeData.penalty += parseFloat(row.total || 0) * USD_TO_CNY_RATE;
+  });
+
   console.log(
-    `otherOrders 员工罚款聚合完成，共 ${employeePenaltyMap.size} 个员工`,
+    `otherOrders 员工罚款聚合完成（含广告费用），共 ${employeePenaltyMap.size} 个员工`,
   );
   return employeePenaltyMap;
 }
@@ -463,8 +505,6 @@ async function insertEmployeeProfitData(
   });
 
   console.log(`聚合完成，共 ${employeeProfitMap.size} 个员工的数据`);
-  console.log(employeeProfitMap);
-  console.log(`员工罚款数据:`, employeePenaltyMap);
 
   // 插入或更新数据库
   for (const [key, data] of employeeProfitMap) {
@@ -564,9 +604,13 @@ async function aggregateEmployeeProfit(targetMonth, targetEmployee = null) {
     const { userPaymentOrders, otherOrders } =
       filterInvalidOrders(financeByOrder);
 
-    // 4. 处理 otherOrders，计算每个员工的平台收入总和
-    const employeePenaltyMap = processOtherOrders(otherOrders);
-
+    // 4. 处理 otherOrders，计算每个员工的平台收入总和（含广告费用）
+    const employeePenaltyMap = await processOtherOrders(
+      otherOrders,
+      monthStart,
+      monthEnd,
+      targetEmployee,
+    );
     // 5. 处理 userPaymentOrders，查询订单时间
     const enrichedUserPaymentOrders =
       await processUserPaymentOrders(userPaymentOrders);
