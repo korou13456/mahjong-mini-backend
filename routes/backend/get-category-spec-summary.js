@@ -10,21 +10,10 @@ function formatPrice(priceInCNY) {
 // 获取品类规格汇总数据
 const { backendAuth } = require("../../middleware/backend-auth");
 const db = require("../../config/database");
-const { priceList } = require("../../utils/price-list");
-
-// 从 priceList 获取工厂原价
-function getFactoryPriceFromList(category, variation) {
-  if (!priceList[category]) return null;
-  return priceList[category][variation] || null;
-}
 
 // 计算底价的辅助函数（人民币）
-function calculateBasePrice(item, usePriceList) {
-  const factoryPrice = usePriceList
-    ? getFactoryPriceFromList(item.category, item.specification) ||
-      parseFloat(item.avg_order_amount) ||
-      0
-    : parseFloat(item.avg_order_amount) || 0;
+function calculateBasePrice(item) {
+  const factoryPrice = parseFloat(item.avg_order_amount) || 0;
   const avgShippingCost = parseFloat(item.avg_shipping_cost) || 0;
   const avgPlatformSubsidy = parseFloat(item.total_platform_subsidy) || 0;
   const avgPlatformPenalty = parseFloat(item.total_platform_penalty) || 0;
@@ -48,7 +37,6 @@ function buildQuery(category, startDateStr, endDateStr, extraFilters) {
     "category = ?",
     "DATE(purchase_date_china) >= ?",
     "DATE(purchase_date_china) <= ?",
-    "order_status != 'Canceled'",
     "paid_amount != 0",
   ];
   const queryParams = [category, startDateStr, endDateStr];
@@ -121,10 +109,6 @@ async function getCategorySpecSummary(req, res) {
     const startDateStr = startDate.toISOString().split("T")[0];
     const endDateStr = endDate.toISOString().split("T")[0];
 
-    // 判断是否需要使用 priceList（只要查询的开始日期在 2026-03-04 之前（包含），就使用 priceList）
-    const usePriceListForOldData =
-      new Date(startDateStr) <= new Date("2026-03-04");
-
     // 查询公司底价数据
     const { sql, params } = buildQuery(category, startDateStr, endDateStr, {});
     const [companyQueryResult] = await db.query(sql, params);
@@ -146,13 +130,8 @@ async function getCategorySpecSummary(req, res) {
     }
 
     const formattedData = companyQueryResult.map((item) => {
-      // 如果查询的结束日期在 2026-03-04 之前（包含），使用 priceList 获取工厂原价
-      const usePriceList = usePriceListForOldData;
-      const factoryPrice = usePriceList
-        ? getFactoryPriceFromList(item.category, item.specification) ||
-          parseFloat(item.avg_order_amount) ||
-          0
-        : parseFloat(item.avg_order_amount) || 0;
+      // 直接使用表里的工厂价格
+      const factoryPrice = parseFloat(item.avg_order_amount) || 0;
 
       const avgShippingCost = parseFloat(item.avg_shipping_cost) || 0;
       const avgPlatformSubsidy = parseFloat(item.total_platform_subsidy) || 0;
