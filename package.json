@@ -29,6 +29,8 @@
     "sales-commission:prod": "NODE_ENV=production node scripts/sales-commission-aggregate/index.js",
     "order-detail-aggregate": "node scripts/order-detail-aggregate/index.js",
     "order-detail-aggregate:prod": "NODE_ENV=production node scripts/order-detail-aggregate/index.js",
+    "employee-profit": "node scripts/employee-profit-aggregate/index.js",
+    "employee-profit:prod": "NODE_ENV=production node scripts/employee-profit-aggregate/index.js",
     "pm2:start": "pm2 start ecosystem.config.js",
     "pm2:stop": "pm2 stop ecosystem.config.js",
     "pm2:restart": "pm2 restart ecosystem.config.js",
