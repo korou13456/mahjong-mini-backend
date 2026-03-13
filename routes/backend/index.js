@@ -58,7 +58,11 @@ router.get(
   require("./get-category-spec-summary"),
 );
 // 获取月度提成报表
-router.get("/employee_profit", backendAuth, require("./get-employee_profit"));
+router.get(
+  "/get-employee-profit",
+  backendAuth,
+  require("./get-employee_profit"),
+);
 // 获取订单商品聚合数据
 router.get(
   "/order-product-aggregate",
