@@ -22,6 +22,8 @@ const priceList = {
     "4x4in": 7,
     "6x6cm": 7,
     "6x6in": 7,
+    "8x8cm": 7,
+    "8x8in": 7,
     "12x12cm": 7,
     "12x12in": 7,
     "18x18cm": 7,
