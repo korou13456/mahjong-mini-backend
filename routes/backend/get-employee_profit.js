@@ -30,7 +30,7 @@ module.exports = async (req, res) => {
     // 查询详细数据
     const [rows] = await db.query(
       `SELECT
-        id,
+        id, 
         month,
         department,
         employee,
