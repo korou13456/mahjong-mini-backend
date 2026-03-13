@@ -115,7 +115,7 @@ async function getCategorySpecSummary(req, res) {
     const startDate = start_date ? new Date(start_date) : new Date(today);
     const endDate = end_date ? new Date(end_date) : new Date(today);
 
-    if (!start_date) startDate.setDate(startDate.getDate() - 45);
+    if (!start_date) startDate.setDate(startDate.getDate() - 60);
     if (!end_date) endDate.setDate(endDate.getDate() - 15);
 
     const startDateStr = startDate.toISOString().split("T")[0];
