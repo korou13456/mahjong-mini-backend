@@ -7,6 +7,7 @@ require("dotenv").config({
 console.log(`加载环境配置文件: ${envFile}`);
 
 const db = require("../../config/database");
+const cron = require('node-cron');
 
 // 美元汇率
 const USD_TO_CNY_RATE = 6.9826;
@@ -16,12 +17,28 @@ const USD_TO_CNY_RATE = 6.9826;
 const { TRANSACTION_TYPES } = require("../../utils/transaction-types");
 const { priceList } = require("../../utils/price-list");
 
+// 定时任务配置
+const SCHEDULER_CONFIG = {
+  cron: "0 20 * * *", // 每天20:00执行
+  defaultMonthsBack: 3, // 默认往前推3个月
+};
+
 // 聚合订单明细数据
-async function aggregateOrderDetail() {
-  console.log("开始聚合订单明细数据...");
+async function aggregateOrderDetail(monthsBack = SCHEDULER_CONFIG.defaultMonthsBack) {
+  console.log(`开始聚合订单明细数据（往前推${monthsBack}个月）...`);
 
   try {
-    // 查询订单明细数据
+    // 计算往前推 monthsBack 个月的日期
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - monthsBack);
+
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+
+    console.log(`查询时间范围: ${startDateStr} 至 ${endDateStr}`);
+
+    // 查询订单明细数据（只查询指定时间范围内的数据）
     const [orderDetails] = await db.query(`
       SELECT
         order_id,
@@ -35,7 +52,8 @@ async function aggregateOrderDetail() {
         department,
         staff_name
       FROM order_detail
-    `);
+      WHERE DATE(purchase_date_china) >= ? AND DATE(purchase_date_china) < ?
+    `, [startDateStr, endDateStr]);
 
     if (orderDetails.length === 0) {
       console.log("没有订单明细数据");
@@ -385,17 +403,56 @@ async function aggregateOrderDetail() {
   }
 }
 
-// 本地直接运行
+// PM2 启动时保持进程运行
 if (require.main === module) {
-  aggregateOrderDetail()
-    .then(() => {
-      console.log("聚合任务执行完毕");
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error("聚合任务执行失败:", error);
-      process.exit(1);
+  // 检查是否是 PM2 运行环境
+  const isPM2 = process.env.pm_id !== undefined;
+
+  if (isPM2) {
+    // PM2 环境：设置就绪信号并保持运行，等待定时触发
+    if (process.send) {
+      process.send('ready');
+    }
+    console.log("订单明细聚合任务已启动（PM2模式），等待定时触发...");
+
+    // 设置 node-cron 定时任务
+    cron.schedule(SCHEDULER_CONFIG.cron, async () => {
+      console.log(`\n[${new Date().toISOString()}] 定时任务触发，开始执行订单明细聚合...`);
+      try {
+        await aggregateOrderDetail(SCHEDULER_CONFIG.defaultMonthsBack);
+        console.log(`[${new Date().toISOString()}] 订单明细聚合任务执行完毕`);
+      } catch (error) {
+        console.error(`[${new Date().toISOString()}] 订单明细聚合任务执行失败:`, error);
+      }
     });
+    console.log(`已设置定时任务: ${SCHEDULER_CONFIG.cron}，默认往前推${SCHEDULER_CONFIG.defaultMonthsBack}个月`);
+  } else {
+    // 本地直接运行：立即执行一次
+    console.log("订单明细聚合任务（本地模式），立即执行...");
+    const monthsBack = process.argv[2] ? parseInt(process.argv[2]) : 3;
+    aggregateOrderDetail(monthsBack)
+      .then(() => {
+        console.log("聚合任务执行完毕");
+        process.exit(0);
+      })
+      .catch((error) => {
+        console.error("聚合任务执行失败:", error);
+        process.exit(1);
+      });
+    return; // 提前返回，不执行下面的信号监听
+  }
+
+  // 保持进程运行，不让进程退出
+  // node-cron 定时任务会持续运行
+  process.on('SIGINT', () => {
+    console.log('\n收到退出信号，正在关闭...');
+    process.exit(0);
+  });
+
+  process.on('SIGTERM', () => {
+    console.log('\n收到终止信号，正在关闭...');
+    process.exit(0);
+  });
 }
 
 module.exports = { aggregateOrderDetail };
