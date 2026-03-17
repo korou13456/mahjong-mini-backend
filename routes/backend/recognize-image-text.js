@@ -1,44 +1,54 @@
-const { backendAuth } = require("../../middleware/backend-auth");
 const Tesseract = require("tesseract.js");
-const sharp = require("sharp"); // 新增依赖，用于处理小图
+const sharp = require("sharp");
 
 /**
- * 判断是否是"有意义文本"
+ * 判断是否是有效文本
  */
 function isMeaningfulText(text, confidence) {
   if (!text) return false;
-
   const clean = text.replace(/\s+/g, "");
 
-  if (confidence < 35) return false;
+  if (confidence < 30) return false;
   if (clean.length < 3) return false;
-  const hasWord = /[a-zA-Z]{2,}|[\u4e00-\u9fa5]{2,}/.test(text);
+
+  const hasWord = /[a-zA-Z0-9]{2,}|[\u4e00-\u9fa5]{2,}/.test(text);
   if (!hasWord) return false;
-
-  const tokens = text.split(/\s+/);
-  const validTokens = tokens.filter((t) => t.length >= 2);
-  if (validTokens.length < 1) return false;
-
-  const validCharCount = (clean.match(/[a-zA-Z0-9\u4e00-\u9fa5]/g) || [])
-    .length;
-  if (validCharCount / clean.length < 0.5) return false;
 
   return true;
 }
 
 /**
- * 按行拆分文本
+ * 按行拆分
  */
 function splitTextLines(text) {
   if (!text) return [];
   return text
     .split(/\n+/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+    .map((l) => l.trim())
+    .filter(Boolean);
 }
 
 /**
- * 并发控制（无依赖版本）
+ * 去重 + 合并文本
+ */
+function mergeTexts(results) {
+  const linesSet = new Set();
+
+  results.forEach((r) => {
+    if (r.text) {
+      splitTextLines(r.text).forEach((line) => {
+        if (line.length > 2) {
+          linesSet.add(line);
+        }
+      });
+    }
+  });
+
+  return Array.from(linesSet);
+}
+
+/**
+ * 并发控制
  */
 async function runWithLimit(tasks, limit = 3) {
   const results = [];
@@ -46,87 +56,157 @@ async function runWithLimit(tasks, limit = 3) {
 
   async function worker() {
     while (index < tasks.length) {
-      const currentIndex = index++;
+      const i = index++;
       try {
-        results[currentIndex] = await tasks[currentIndex]();
-      } catch (err) {
-        results[currentIndex] = err;
+        results[i] = await tasks[i]();
+      } catch (e) {
+        results[i] = e;
       }
     }
   }
 
-  const workers = Array.from({ length: limit }, () => worker());
-  await Promise.all(workers);
-
+  await Promise.all(Array.from({ length: limit }, worker));
   return results;
 }
 
 /**
- * 放大小图
+ * 🔥 图片增强
  */
-async function ensureMinWidth(imageBuffer, minWidth = 50) {
-  const img = sharp(imageBuffer);
-  const metadata = await img.metadata();
-
-  if (metadata.width >= minWidth) return imageBuffer;
-
-  const scale = minWidth / metadata.width;
-  return img.resize(Math.round(metadata.width * scale)).toBuffer();
+async function preprocess(imageBuffer) {
+  return sharp(imageBuffer)
+    .resize({ width: 800 }) // 放大
+    .grayscale()
+    .normalize()
+    .sharpen()
+    .threshold(150) // 二值化
+    .toBuffer();
 }
 
 /**
- * OCR识别单张图片
+ * 🔥 裁三块（核心）
+ */
+async function cropRegions(buffer) {
+  const meta = await sharp(buffer).metadata();
+
+  const width = meta.width || 0;
+  const height = meta.height || 0;
+
+  if (width < 10 || height < 10) {
+    return [buffer, buffer, buffer];
+  }
+
+  // 👉 安全计算
+  const middleTop = Math.floor(height * 0.2);
+  const middleHeight = Math.floor(height * 0.5);
+
+  const bottomTop = Math.floor(height * 0.5);
+  const bottomHeight = height - bottomTop;
+
+  // ✅ 每次都 new sharp（关键）
+  const safeExtract = async (opts) => {
+    try {
+      return await sharp(buffer)
+        .extract({
+          left: 0,
+          top: Math.max(0, Math.min(opts.top, height - 1)),
+          width: Math.min(width, width),
+          height: Math.max(1, Math.min(opts.height, height - opts.top)),
+        })
+        .toBuffer();
+    } catch (e) {
+      console.warn("裁剪失败，降级原图:", e.message);
+      return buffer;
+    }
+  };
+
+  return Promise.all([
+    // 1️⃣ 整图
+    buffer,
+
+    // 2️⃣ 中间
+    safeExtract({
+      top: middleTop,
+      height: middleHeight,
+    }),
+
+    // 3️⃣ 底部
+    safeExtract({
+      top: bottomTop,
+      height: bottomHeight,
+    }),
+  ]);
+}
+
+/**
+ * OCR执行
+ */
+async function doOCR(buffer, index, tag) {
+  const {
+    data: { text, confidence },
+  } = await Tesseract.recognize(buffer, "eng", {
+    tessedit_pageseg_mode: 11, // 稀疏文本（最强）
+    logger: (m) => {
+      if (m.status === "recognizing text") {
+        console.log(`[${index + 1}][${tag}] ${(m.progress * 100).toFixed(1)}%`);
+      }
+    },
+  });
+
+  return { text: text.trim(), confidence };
+}
+
+/**
+ * 单图识别（🔥三块 + 合并）
  */
 async function recognizeOne(imageUrl, index, total) {
   try {
-    console.log(`开始识别 ${index + 1}/${total}: ${imageUrl}`);
+    console.log(`开始识别 ${index + 1}/${total}`);
 
-    // 先获取图片 buffer
-    const response = await fetch(imageUrl);
-    const buffer = await response.arrayBuffer();
-    let imgBuffer = Buffer.from(buffer);
+    const res = await fetch(imageUrl);
+    const buffer = Buffer.from(await res.arrayBuffer());
 
-    // 自动放大小图
-    imgBuffer = await ensureMinWidth(imgBuffer, 50);
+    // 1️⃣ 预处理
+    const processed = await preprocess(buffer);
 
-    const {
-      data: { text, confidence },
-    } = await Tesseract.recognize(imgBuffer, "eng", {
-      tessedit_pageseg_mode: 6,
-      logger: (m) => {
-        if (m.status === "recognizing text") {
-          console.log(`  [${index + 1}] ${(m.progress * 100).toFixed(1)}%`);
-        }
-      },
-    });
+    // 2️⃣ 裁三块
+    const regions = await cropRegions(processed);
 
-    const trimmedText = text.trim();
-    const meaningful = isMeaningfulText(trimmedText, confidence);
-    const lines = meaningful ? splitTextLines(trimmedText) : [];
+    // 3️⃣ 三次 OCR
+    const ocrResults = await Promise.all([
+      doOCR(regions[0], index, "full"),
+      doOCR(regions[1], index, "middle"),
+      doOCR(regions[2], index, "bottom"),
+    ]);
+
+    // 4️⃣ 合并结果
+    const mergedLines = mergeTexts(ocrResults);
+    const finalText = mergedLines.join("\n");
+
+    const avgConfidence =
+      ocrResults.reduce((sum, r) => sum + r.confidence, 0) / ocrResults.length;
+
+    const meaningful = isMeaningfulText(finalText, avgConfidence);
 
     console.log(
-      `完成 ${index + 1}/${total} | 置信度: ${confidence.toFixed(
-        2,
-      )} | 有效文本: ${meaningful}`,
+      `完成 ${index + 1}/${total} | 置信度: ${avgConfidence.toFixed(2)}`,
     );
 
     return {
       image: imageUrl,
-      text: meaningful ? trimmedText : null,
-      lines,
-      confidence,
+      text: meaningful ? finalText : null,
+      lines: mergedLines,
+      confidence: avgConfidence,
       hasText: meaningful,
       success: true,
     };
-  } catch (error) {
-    console.error(`识别失败 ${index + 1}:`, error.message);
+  } catch (err) {
+    console.error("识别失败:", err.message);
     return {
       image: imageUrl,
       text: null,
       lines: [],
       hasText: false,
       success: false,
-      error: error.message,
     };
   }
 }
@@ -135,42 +215,25 @@ async function recognizeOne(imageUrl, index, total) {
  * 主接口
  */
 async function recognizeImageText(req, res) {
-  try {
-    const { images } = req.body;
+  const { images } = req.body;
 
-    if (!images || !Array.isArray(images) || images.length === 0) {
-      return res.json({
-        code: 400,
-        message: "请提供图片地址数组",
-        data: null,
-      });
-    }
-
-    const tasks = images.map((img, i) => {
-      return () => recognizeOne(img, i, images.length);
-    });
-
-    const results = await runWithLimit(tasks, 3);
-
-    res.json({
-      code: 200,
-      message: "识别完成",
-      data: {
-        total: images.length,
-        withText: results.filter((r) => r.hasText).length,
-        withoutText: results.filter((r) => !r.hasText).length,
-        results,
-      },
-    });
-  } catch (error) {
-    console.error("图片文字识别失败:", error);
-
-    res.status(500).json({
-      code: 500,
-      message: "服务器错误",
-      data: null,
-    });
+  if (!images || !Array.isArray(images)) {
+    return res.json({ code: 400, message: "参数错误" });
   }
+
+  const tasks = images.map(
+    (img, i) => () => recognizeOne(img, i, images.length),
+  );
+
+  const results = await runWithLimit(tasks, 3);
+
+  res.json({
+    code: 200,
+    data: {
+      total: images.length,
+      results,
+    },
+  });
 }
 
 module.exports = recognizeImageText;
