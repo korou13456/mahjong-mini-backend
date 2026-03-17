@@ -83,6 +83,11 @@ router.get(
   backendAuth,
   require("./get-order-detail-aggregate"),
 );
+// 图片文字识别
+router.post(
+  "/recognize-image-text",
+  require("./recognize-image-text"),
+);
 
 // 路由权限管理
 router.use("/router_permission", backendAuth, require("./router_permission"));
