@@ -20,10 +20,9 @@ module.exports = {
       // 进程管理
       min_uptime: "10s",
       max_restarts: 10,
-      // 优雅关闭
-      kill_timeout: 5000,
-      wait_ready: true,
-      listen_timeout: 10000,
+      // 超时配置 - 增加超时时间避免502
+      listen_timeout: 30000,
+      kill_timeout: 60000,
     },
   ],
 };

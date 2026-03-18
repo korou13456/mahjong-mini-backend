@@ -376,8 +376,8 @@ async function recognizeImageText(req, res) {
     (img, i) => () => recognizeOne(img, i, images.length),
   );
 
-  // 性能优化：提升并发数
-  const results = await runWithLimit(tasks, 5);
+  // 性能优化：降低并发数，避免502错误
+  const results = await runWithLimit(tasks, 2);
 
   res.json({
     code: 200,
