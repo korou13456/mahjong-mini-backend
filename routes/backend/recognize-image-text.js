@@ -152,7 +152,7 @@ async function preprocessMultiple(imageBuffer) {
 }
 
 /**
- * 🔥 裁三块（优化版）- 增加顶部和底部区域
+ * 🔥 裁两块（速度优化版）- 中间和底部区域
  */
 async function cropRegions(buffer) {
   const meta = await sharp(buffer).metadata();
@@ -161,15 +161,13 @@ async function cropRegions(buffer) {
   const height = meta.height || 0;
 
   if (width < 10 || height < 10) {
-    return [buffer, buffer, buffer]; // 返回三个相同缓冲区
+    return [buffer, buffer]; // 返回两个相同缓冲区
   }
 
-  // 👉 安全计算三个区域
-  const topHeight = Math.floor(height * 0.3); // 顶部30%
-  const middleTop = Math.floor(height * 0.3); // 中间从30%开始
-  const middleHeight = Math.floor(height * 0.4); // 中间40%
-  const bottomTop = Math.floor(height * 0.7); // 底部从70%开始
-  const bottomHeight = Math.floor(height * 0.3); // 底部30%
+  // 👉 计算中间和底部区域
+  const middleTop = Math.floor(height * 0.2);
+  const middleHeight = Math.floor(height * 0.5);
+  const bottomTop = Math.floor(height * 0.7);
 
   // ✅ 每次都 new sharp（关键）
   const safeExtract = async (opts) => {
@@ -189,34 +187,25 @@ async function cropRegions(buffer) {
   };
 
   return Promise.all([
-    // 1️⃣ 整图
-    buffer,
-
-    // 2️⃣ 顶部区域（标题、品牌等）
-    safeExtract({
-      top: 0,
-      height: topHeight,
-    }),
-
-    // 3️⃣ 中间区域（主要文本、尺寸表）
+    // 1️⃣ 中间区域（主要文本、尺寸表）
     safeExtract({
       top: middleTop,
       height: middleHeight,
     }),
 
-    // 4️⃣ 底部区域（价格、备注等）
+    // 2️⃣ 底部区域（价格、备注等）
     safeExtract({
       top: bottomTop,
-      height: bottomHeight,
+      height: height - bottomTop,
     }),
   ]);
 }
 
 /**
- * OCR执行 - 优化双模式尝试（保证准确性版）
+ * OCR执行 - 智能跳过优化版（保证准确度）
  */
 async function doOCR(buffer, index, tag) {
-  // 保证准确性：并行执行两种PSM模式
+  // 并行执行两种PSM模式
   const psmModes = [
     { mode: 11, name: "sparse" }, // 稀疏文本（最适合表格、尺寸图）
     { mode: 6, name: "uniform" }, // 统一文本块（适合普通文本）
@@ -256,9 +245,6 @@ async function doOCR(buffer, index, tag) {
     return { text: "", confidence: 0 };
   }
   
-  // 记录最佳模式
-  console.log(`[${index + 1}][${tag}] 最佳PSM: ${bestResult.mode}, 置信度: ${bestResult.confidence.toFixed(2)}`);
-  
   return { text: bestResult.text, confidence: bestResult.confidence };
 }
 
@@ -292,7 +278,7 @@ async function recognizeOne(imageUrl, index, total) {
     }
     perf.preprocess = Date.now() - preprocessStart;
 
-    // 2️⃣ 并行执行所有OCR任务
+    // 2️⃣ 并行执行所有OCR任务（速度优化版：中间+底部区域）
     const ocrTasks = [];
     let cropTime = 0;
     
@@ -304,13 +290,20 @@ async function recognizeOne(imageUrl, index, total) {
       const regions = await cropRegions(imgBuffer);
       cropTime += Date.now() - cropStart;
       
-      // 对每个区域执行OCR（现在有4个区域：全图、顶部、中间、底部）
-      ocrTasks.push(
-        doOCR(regions[0], index, `${strategyName}_full`),
-        doOCR(regions[1], index, `${strategyName}_top`),
-        doOCR(regions[2], index, `${strategyName}_middle`),
-        doOCR(regions[3], index, `${strategyName}_bottom`)
-      );
+      // 优化：识别中间和底部区域
+      if (strategyName === "standard") {
+        // standard策略：中间 + 底部
+        ocrTasks.push(
+          doOCR(regions[0], index, `${strategyName}_middle`),
+          doOCR(regions[1], index, `${strategyName}_bottom`)
+        );
+      } else {
+        // high_contrast策略：中间 + 底部
+        ocrTasks.push(
+          doOCR(regions[0], index, `${strategyName}_middle`),
+          doOCR(regions[1], index, `${strategyName}_bottom`)
+        );
+      }
     }
     perf.crop = cropTime;
 
@@ -383,8 +376,8 @@ async function recognizeImageText(req, res) {
     (img, i) => () => recognizeOne(img, i, images.length),
   );
 
-  // 保证准确性：使用适中的并发数
-  const results = await runWithLimit(tasks, 3);
+  // 性能优化：提升并发数
+  const results = await runWithLimit(tasks, 5);
 
   res.json({
     code: 200,
