@@ -41,13 +41,13 @@ module.exports = async (req, res) => {
     }
 
     if (purchaseDateStart) {
-      conditions.push("DATE(purchase_date_china) >= ?");
-      params.push(purchaseDateStart);
+      conditions.push("purchase_date_china >= ?");
+      params.push(`${purchaseDateStart} 00:00:00`);
     }
 
     if (purchaseDateEnd) {
-      conditions.push("DATE(purchase_date_china) <= ?");
-      params.push(purchaseDateEnd);
+      conditions.push("purchase_date_china <= ?");
+      params.push(`${purchaseDateEnd} 23:59:59`);
     }
 
     if (department) {
