@@ -127,6 +127,27 @@ module.exports = async (req, res) => {
       [...params, pageSize, offset],
     );
 
+    // 格式化时间为 YYYY-MM-DD HH:mm:ss
+    const formatTime = (dateStr) => {
+      if (!dateStr) return null;
+      const date = new Date(dateStr);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    };
+
+    // 格式化数据中的时间字段
+    const formattedData = data.map(row => ({
+      ...row,
+      purchase_date_china: formatTime(row.purchase_date_china),
+      created_at: formatTime(row.created_at),
+      updated_at: formatTime(row.updated_at),
+    }));
+
     // 查询所有可选项
     const [orderStatuses] = await db.query(
       "SELECT DISTINCT order_status FROM order_detail_aggregate WHERE order_status IS NOT NULL ORDER BY order_status",
@@ -164,7 +185,7 @@ module.exports = async (req, res) => {
       code: 200,
       message: "获取订单明细聚合数据成功",
       data: {
-        list: data,
+        list: formattedData,
         summary,
         pagination: {
           page: pageNum,
