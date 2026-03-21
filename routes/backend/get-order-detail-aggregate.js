@@ -7,8 +7,6 @@ module.exports = async (req, res) => {
       page_size = 20,
       order_status,
       order_settlement_status,
-      purchase_date_start,
-      purchase_date_end,
       start_date,
       end_date,
       department,
@@ -20,8 +18,8 @@ module.exports = async (req, res) => {
     } = req.query;
 
     // 兼容不同的时间参数名
-    const purchaseDateStart = purchase_date_start || start_date;
-    const purchaseDateEnd = purchase_date_end || end_date;
+    const purchaseDateStart = start_date;
+    const purchaseDateEnd = end_date;
 
     // 转换为数字
     const pageNum = parseInt(page, 10) || 1;
@@ -43,12 +41,12 @@ module.exports = async (req, res) => {
     }
 
     if (purchaseDateStart) {
-      conditions.push("purchase_date_china >= ?");
+      conditions.push("DATE(purchase_date_china) >= ?");
       params.push(purchaseDateStart);
     }
 
     if (purchaseDateEnd) {
-      conditions.push("purchase_date_china <= ?");
+      conditions.push("DATE(purchase_date_china) <= ?");
       params.push(purchaseDateEnd);
     }
 
